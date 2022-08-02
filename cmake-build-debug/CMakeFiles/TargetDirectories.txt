@@ -1,0 +1,3 @@
+/home/esdras-toc/Documentos/Archivos/MIA_Proyecto1_201807373/cmake-build-debug/CMakeFiles/MIA_Proyecto1_201807373.dir
+/home/esdras-toc/Documentos/Archivos/MIA_Proyecto1_201807373/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/esdras-toc/Documentos/Archivos/MIA_Proyecto1_201807373/cmake-build-debug/CMakeFiles/rebuild_cache.dir
