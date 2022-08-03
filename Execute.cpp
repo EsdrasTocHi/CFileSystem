@@ -88,3 +88,24 @@ void ExecuteMkdisk(int size, string unit, char fit, string path){
         cout << "$Error: The disk already exist"<< endl;
     }
 }
+
+void ExecuteRmdisk(string path){
+    if(Exist(path)) {
+        string confirmation;
+        while (true) {
+            cout << "Are you sure you want to erase the disk " + path + "? (y/n)" << endl;
+            getline(cin, confirmation);
+            confirmation = confirmation;
+            if (confirmation == "y" || confirmation == "Y") {
+                remove(path.c_str());
+                cout << "DISK REMOVED SUCCESSFULLY" << endl;
+                break;
+            } else if (confirmation == "n" || confirmation == "N"){
+                cout << "Warning: delete aborted"<<endl;
+                break;
+            }
+        }
+    }else{
+        cout << "$Error: "<< path <<" doesn't exist"<<endl;
+    }
+}

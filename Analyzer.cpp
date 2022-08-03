@@ -10,6 +10,7 @@ using namespace std;
 #include "fstream"
 
 void ExecuteMkdisk(int size, string unit, char fit, string path);
+void ExecuteRmdisk(string path);
 
 
 string ToLower(string data){
@@ -182,6 +183,32 @@ void ReadMkdisk(vector<string> params){
     ExecuteMkdisk(size, unit, fit, path);
 }
 
+void ReadRmdisk(vector<string> params){
+    string path;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteRmdisk(path);
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');
@@ -190,6 +217,8 @@ void Read(string str){
 
     if(cmd == "mkdisk"){
         ReadMkdisk(command);
+    }else if(cmd == "rmdisk"){
+        ReadRmdisk(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }
