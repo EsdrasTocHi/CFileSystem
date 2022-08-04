@@ -209,6 +209,10 @@ void ReadRmdisk(vector<string> params){
     ExecuteRmdisk(path);
 }
 
+void ReadFdisk(vector<string> params){
+
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');

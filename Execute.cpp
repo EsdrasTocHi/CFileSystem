@@ -34,7 +34,7 @@ const string currentDateTime() {
 void ExecuteMkdisk(int size, string unit, char fit, string path){
     if(!(Exist(path))){
         FILE *file;
-        char buff[1024];
+        char buff='\0';
         int signature;
         srand(time(NULL));
         signature = rand();
@@ -47,10 +47,6 @@ void ExecuteMkdisk(int size, string unit, char fit, string path){
         }else{
             cout << "$Error: the value b is not valid for the unit parameter in mkdisc command" << endl;
             return;
-        }
-
-        for(i = 0; i<1024; i++){
-            buff[i] = '\0';
         }
 
         file = fopen(path.c_str(), "wb");
@@ -71,14 +67,41 @@ void ExecuteMkdisk(int size, string unit, char fit, string path){
         par.part_type = '\0';
         par.part_fit = '\0';
         par.part_status = '\0';
-        mbr.mbr_partition_1 = mbr.mbr_partition_2 = mbr.mbr_partition_3 = mbr.mbr_partition_4 = par;
+        mbr.mbr_partition_1 = par;
+
+        Partition par2;
+        par.part_start = 0;
+        par.part_size = 0;
+        strcpy(par.part_name, "");
+        par.part_type = '\0';
+        par.part_fit = '\0';
+        par.part_status = '\0';
+        mbr.mbr_partition_2 = par;
+
+        Partition par3;
+        par.part_start = 0;
+        par.part_size = 0;
+        strcpy(par.part_name, "");
+        par.part_type = '\0';
+        par.part_fit = '\0';
+        par.part_status = '\0';
+        mbr.mbr_partition_3 = par;
+
+        Partition par4;
+        par.part_start = 0;
+        par.part_size = 0;
+        strcpy(par.part_name, "");
+        par.part_type = '\0';
+        par.part_fit = '\0';
+        par.part_status = '\0';
+        mbr.mbr_partition_4 = par;
 
         fseek(file, 0, SEEK_SET);
         fwrite(&mbr, sizeof(Mbr), 1, file);
 
-        i = 0;
-        while(i != tam){
-            fwrite(&buff, 1024, 1, file);
+        i = sizeof(Mbr);
+        while(i != tam*1024){
+            fwrite(&buff, 1, 1, file);
             i++;
         }
 
