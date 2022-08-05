@@ -27,4 +27,13 @@ typedef struct{
     Partition mbr_partition_4;
 }Mbr;
 
+typedef struct{
+    char part_status;
+    char part_fit;
+    int part_start;
+    int part_s;
+    int part_next;
+    char part_name[16];
+}Ebr;
+
 #endif //MIA_PROYECTO1_201807373_STRUCTURES_H

@@ -11,6 +11,7 @@ using namespace std;
 
 void ExecuteMkdisk(int size, string unit, char fit, string path);
 void ExecuteRmdisk(string path);
+void ExecuteFdiskNewPartition(int size, string unit, string path, string type, char fit, string name);
 
 
 string ToLower(string data){
@@ -130,6 +131,62 @@ string ParameterPath(string cmd){
     cout << "$Error: PATH cannot be empty" << endl;
     return "";
 }
+
+string ParameterUnitWB(string cmd){
+    string unit = ToLower(cmd);
+
+    if(unit == "m" || unit == "k" || unit == "b"){
+        return unit;
+    }
+
+    cout << "$Error: unit type is invalid"<<endl;
+
+    return "";
+}
+
+string ParameterType(string cmd){
+    string unit = ToLower(cmd);
+
+    if(unit == "p" || unit == "e" || unit == "l"){
+        return unit;
+    }
+
+    cout << "$Error: type of partition is invalid"<<endl;
+
+    return "";
+}
+
+bool ParameterDelete(string cmd){
+    string val = ToLower(cmd);
+
+    if(val == "full"){
+        return true;
+    }
+
+    cout << "$Error: "<<cmd<<" is not valid"<<endl;
+    return false;
+}
+
+string ParameterName(string cmd){
+    if(cmd == ""){
+        cout << "$Error: name cannot be empty"<<endl;
+        return "";
+    }
+
+    return cmd;
+}
+
+int ParameterAdd(string str){
+    int size;
+    try {
+        size = stoi(str);
+    }catch (...) {
+        cout << "$Error: Size parameter must be numeric"<<endl;
+        return 0;
+    }
+
+    return size;
+}
 /*
  *
  * READ COMMANDS
@@ -176,7 +233,7 @@ void ReadMkdisk(vector<string> params){
     }
 
     if(size == 0){
-        cout << "$Error: PATH is a mandatory parameter" << endl;
+        cout << "$Error: SIZE is a mandatory parameter" << endl;
         return;
     }
 
@@ -210,7 +267,80 @@ void ReadRmdisk(vector<string> params){
 }
 
 void ReadFdisk(vector<string> params){
+    string path, unit = "k", partitionName = "", type = "P";
+    char fit = 'W';
+    int size = 0, add=0;
+    bool isAdd = false, isDelete = false;
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if (name == "-s-"){
+            size = ParameterSize(value);
+            if(size == 0){
+                return;
+            }
+        }else if(name == "-u-"){
+            unit = ParameterUnitWB(value);
+            if(unit == ""){
+                return;
+            }
+        }else if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else if(name == "-t-"){
+            type = ParameterType(value);
+            if(type == ""){
+                return;
+            }
+        }else if(name == "-f-"){
+            fit = ParameterFit(value);
+            if(fit == ' '){
+                return;
+            }
+        }else if(name == "-delete-"){
+            isDelete = ParameterDelete(value);
+            if(!isDelete){
+                return;
+            }
+        }else if(name == "-name-"){
+            partitionName = ParameterName(value);
+            if(partitionName == ""){
+                return;
+            }
+        }else if(name == "-add-"){
+            add = ParameterAdd(value);
+            isAdd = true;
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
 
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    if(partitionName == ""){
+        cout << "$Error: NAME is a mandatory parameter" << endl;
+        return;
+    }
+
+    if(isAdd){
+
+    }else if(isDelete){
+
+    }else{
+        if(size == 0){
+            cout << "$Error: SIZE is a mandatory parameter" << endl;
+            return;
+        }
+
+        ExecuteFdiskNewPartition(size, unit, path, type, fit, partitionName);
+    }
 }
 
 void Read(string str){
@@ -223,6 +353,8 @@ void Read(string str){
         ReadMkdisk(command);
     }else if(cmd == "rmdisk"){
         ReadRmdisk(command);
+    }else if(cmd == "fdisk"){
+        ReadFdisk(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }
