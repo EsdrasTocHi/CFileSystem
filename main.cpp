@@ -1,5 +1,6 @@
 #include <iostream>
 #include "string"
+#include "Structures.h"
 using namespace std;
 void Read(string str);
 string ToLower(string data);

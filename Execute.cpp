@@ -144,32 +144,14 @@ void ExecuteRmdisk(string path){
  * FDISK
  *
  */
-vector<Partition> SortPartitions(Partition p1, Partition p2, Partition p3, Partition p4){
-    vector<Partition> res;
-
-
-    if(res.size() == 0){
-        return res;
-    }
-
-    int i;
-    for(i = 0; i < res.size(); i++){
-
-    }
-}
 
 bool compareByStart(const Partition &a, const Partition &b)
 {
     return a.part_start < b.part_start;
 }
 
-vector<Partition> AvailableSpace(vector<Partition> partitions){
-
-}
-
 void ExecuteFdiskNewPartition(int size, string unit, string path, string type, char fit, string name){
     if(Exist(path)){
-
         if(name.length() > 16){
             cout << "$Error: partition name cannot be longer than 16 characters" << endl;
         }
@@ -195,12 +177,14 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
                 newPar = &mbr.mbr_partition_4;
             } else {
                 cout << "$Error: maximum partitions reached" << endl;
+                fclose(file);
                 return;
             }
 
             if ((mbr.mbr_partition_1.part_name == name) || (mbr.mbr_partition_2.part_name == name)
                 || (mbr.mbr_partition_3.part_name == name) || (mbr.mbr_partition_4.part_name == name)) {
                 cout << "$Error: a partition with that name already exists" << endl;
+                fclose(file);
                 return;
             }
 
@@ -211,6 +195,7 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
                 if(mbr.mbr_partition_1.part_type == 'e' || mbr.mbr_partition_2.part_type == 'e'
                 || mbr.mbr_partition_3.part_type == 'e' || mbr.mbr_partition_4.part_type == 'e'){
                     cout << "$Error: an extended partition already exists" << endl;
+                    fclose(file);
                     return;
                 }
             }
@@ -230,10 +215,6 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
             }
 
             sort(partitions.begin(), partitions.end(), compareByStart);
-            /*cout << "**********"<<endl;
-            for(int i = 0; i < partitions.size(); i++){
-                cout << partitions.at(i).part_start << endl;
-            }*/
 
             /*
              * Encontramos los espacios disponibles
@@ -329,6 +310,7 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
 
             if (index == -1) {
                 cout << "$Error: no space available" << endl;
+                fclose(file);
                 return;
             }
 
@@ -342,7 +324,7 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
             fseek(file, 0, SEEK_SET);
             fwrite(&mbr, sizeof(Mbr), 1, file);
 
-            if(type == "e"){
+            /*if(type == "e"){
                 Ebr ebr;
                 strcpy(ebr.part_name, "");
                 ebr.part_status = '\0';
@@ -352,7 +334,7 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
                 ebr.part_next = -1;
                 fseek(file, startOfSpace.at(index), SEEK_SET);
                 fwrite(&ebr, sizeof(Ebr), 1, file);
-            }
+            }*/
 
             /*fseek(file, 0, SEEK_SET);
             fread(&mbr, sizeof(Mbr), 1, file);
@@ -366,6 +348,175 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
             fclose(file);
 
             cout << "PARTITION CREATED SUCCESSFULLY"<<endl;
+        }else{
+            FILE *file;
+            Mbr mbr;
+            file = fopen(path.c_str(), "rb+");
+            fseek(file, 0, SEEK_SET);
+            fread(&mbr, sizeof(Mbr), 1, file);
+
+            Partition *extendedPartition;
+
+            if(mbr.mbr_partition_1.part_type == 'e'){
+                extendedPartition = &mbr.mbr_partition_1;
+            }else if(mbr.mbr_partition_2.part_type == 'e'){
+                extendedPartition = &mbr.mbr_partition_2;
+            }else if(mbr.mbr_partition_3.part_type == 'e'){
+                extendedPartition = &mbr.mbr_partition_3;
+            }else if(mbr.mbr_partition_4.part_type == 'e'){
+                extendedPartition = &mbr.mbr_partition_4;
+            }else{
+                cout << "$Error: there is no extended partition" << endl;
+                fclose(file);
+                return;
+            }
+
+            fseek(file, extendedPartition->part_start, SEEK_SET);
+            Ebr ebr;
+            fread(&ebr, sizeof(Ebr), 1, file);
+
+            int tam;
+            if (unit == "m") {
+                tam = (size * 1024 * 1024);
+            } else if (unit == "k") {
+                tam = (size * 1024);
+            } else {
+                tam = size;
+            }
+
+            int spaceNeeded = tam + sizeof(Ebr);
+
+            if(ebr.part_start == 0 && ebr.part_next == 0){
+                if(extendedPartition->part_size >= spaceNeeded){
+                    ebr.part_start = extendedPartition->part_start + sizeof(Ebr);
+                    ebr.part_next = -1;
+                    ebr.part_fit = fit;
+                    ebr.part_s = tam;
+                    ebr.part_status = 'A';
+                    for (int i = 0; i < name.length(); i++) { ebr.part_name[i] = name[i]; }
+
+                    fseek(file, extendedPartition->part_start, SEEK_SET);
+                    fwrite(&ebr, sizeof(Ebr), 1, file);
+                    cout << "PARTITION CREATED SUCCESSFULLY"<<endl;
+                    fclose(file);
+                    return;
+                }else{
+                    cout << "$Error: no space available" << endl;
+                    fclose(file);
+                    return;
+                }
+            }
+
+            int pointer = extendedPartition->part_start;
+            vector<Ebr> partitions;
+            vector<int> availableSpace;
+
+            /*
+             * metemos las particiones dentro de un vector
+             */
+            while(pointer < extendedPartition->part_start+extendedPartition->part_size-1){
+                Ebr ebr;
+                fseek(file, pointer, SEEK_SET);
+                fread(&ebr, sizeof(Ebr), 1, file);
+
+                if(ebr.part_next == -1){
+                    availableSpace.push_back((extendedPartition->part_start+extendedPartition->part_size)-(ebr.part_start+ebr.part_s));
+                    partitions.push_back(ebr);
+                    break;
+                }
+
+                partitions.push_back(ebr);
+                availableSpace.push_back(ebr.part_next - (ebr.part_start+ebr.part_s));
+
+                //pointer = ebr.part_start + ebr.part_s;
+                pointer = ebr.part_next;
+            }
+
+            /*for(int i = 0; i<partitions.size();i++){
+                cout << partitions.at(i).part_start<<" - "<<partitions.at(i).part_name <<" - "<<partitions.at(i).part_next<<endl;
+            }*/
+
+            if(partitions.size()==23){
+                cout << "$Error: maximum of logic partitions reached" << endl;
+                fclose(file);
+                return;
+            }
+
+            /*
+             * buscamos el lugar adecuado
+             */
+
+            int index = -1;
+            if(extendedPartition->part_fit == 'B'){
+                int actualSpace=-1;
+                for(int i = 0; i < availableSpace.size(); i++){
+                    if(availableSpace.at(i) >= spaceNeeded){
+                        if(actualSpace == -1){
+                            actualSpace = availableSpace.at(i);
+                            index = i;
+                            continue;
+                        }else{
+                            if(availableSpace.at(i)<actualSpace){
+                                actualSpace = availableSpace.at(i);
+                                index = i;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }else if(extendedPartition->part_fit == 'W'){
+                int actualSpace=-1;
+                for(int i = 0; i < availableSpace.size(); i++){
+                    if(availableSpace.at(i) >= spaceNeeded){
+                        if(actualSpace == -1){
+                            actualSpace = availableSpace.at(i);
+                            index = i;
+                            continue;
+                        }else{
+                            if(availableSpace.at(i)>actualSpace){
+                                actualSpace = availableSpace.at(i);
+                                index = i;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }else{
+                for(int i = 0; i < availableSpace.size(); i++){
+                    if(availableSpace.at(i) >= spaceNeeded){
+                        index = i;
+                        break;
+                    }
+                }
+            }
+
+            if (index == -1) {
+                cout << "$Error: no space available" << endl;
+                fclose(file);
+                return;
+            }
+
+            ebr.part_start = partitions.at(index).part_start + partitions.at(index).part_s + sizeof(Ebr);
+            ebr.part_next = -1;
+            if(index < availableSpace.size()-1) {
+                ebr.part_next = partitions.at(index).part_next;
+            }
+            ebr.part_fit = fit;
+            ebr.part_s = tam;
+            ebr.part_status = 'A';
+            for (int i = 0; i < name.length(); i++) { ebr.part_name[i] = name[i]; }
+
+            partitions.at(index).part_next = ebr.part_start - sizeof(Ebr);
+
+            fseek(file, partitions.at(index).part_start - sizeof(Ebr), SEEK_SET);
+            fwrite(&(partitions.at(index)), sizeof(Ebr), 1, file);
+
+            fseek(file, ebr.part_start- sizeof(Ebr), SEEK_SET);
+            fwrite(&ebr, sizeof(Ebr), 1, file);
+
+
+            cout << "PARTITION CREATED SUCCESSFULLY"<<endl;
+            fclose(file);
         }
     }else{
         cout << "$Error: "<< path <<" doesn't exist"<<endl;
