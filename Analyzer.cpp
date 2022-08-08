@@ -12,6 +12,7 @@ using namespace std;
 void ExecuteMkdisk(int size, string unit, char fit, string path);
 void ExecuteRmdisk(string path);
 void ExecuteFdiskNewPartition(int size, string unit, string path, string type, char fit, string name);
+void ExecuteFdiskAddPartition(int add, string unit, string path, string name);
 
 
 string ToLower(string data){
@@ -267,7 +268,7 @@ void ReadRmdisk(vector<string> params){
 }
 
 void ReadFdisk(vector<string> params){
-    string path, unit = "k", partitionName = "", type = "P";
+    string path, unit = "k", partitionName = "", type = "p";
     char fit = 'W';
     int size = 0, add=0;
     bool isAdd = false, isDelete = false;
@@ -330,7 +331,7 @@ void ReadFdisk(vector<string> params){
     }
 
     if(isAdd){
-
+        ExecuteFdiskAddPartition(add, unit, path, partitionName);
     }else if(isDelete){
 
     }else{
