@@ -629,7 +629,7 @@ void ExecuteFdiskAddPartition(int add, string unit, string path, string nameStri
             par = &mbr.mbr_partition_4;
         }else{
             fclose(file);
-            cout << "===$Error: the partition doesn't exist"<<endl;
+            cout << "$Error: the partition doesn't exist"<<endl;
             return;
         }
 
@@ -703,6 +703,154 @@ void ExecuteFdiskAddPartition(int add, string unit, string path, string nameStri
         fwrite(&partitions.at(index), sizeof(Ebr), 1, file);
 
         cout << "SPACE MODIFICATION COMPLETED"<<endl;
+        fclose(file);
+        return;
+    }else{
+        cout << "$Error: "<< path <<" doesn't exist"<<endl;
+    }
+}
+
+void ExecuteFdiskDeletePartition(string path, string nameString){
+    if(Exist(path)){
+        char name[16];
+        for(int i = 0; i < 16; i++){
+            if(i < nameString.length()) {
+                name[i] = nameString[i];
+                continue;
+            }
+            name[i] = '\0';
+        }
+
+        FILE *file;
+        Mbr mbr;
+        file = fopen(path.c_str(), "rb+");
+        fseek(file, 0, SEEK_SET);
+        fread(&mbr, sizeof(Mbr), 1, file);
+
+        Partition *par;
+        bool found = false;
+
+        if(ToLower(mbr.mbr_partition_1.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_1;
+            found = true;
+        }else if(ToLower(mbr.mbr_partition_2.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_2;
+            found = true;
+        }else if(ToLower(mbr.mbr_partition_3.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_3;
+            found = true;
+        }else if(ToLower(mbr.mbr_partition_4.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_4;
+            found = true;
+        }
+
+        // Es primaria o extendida
+        if(found){
+            char c = '\0';
+            for(int i = par->part_start; i < par->part_start+par->part_size;i++){
+                fseek(file, i, SEEK_SET);
+                fwrite(&c, 1, 1, file);
+            }
+
+            par->part_start = 0;
+            par->part_size = 0;
+            par->part_type = '\0';
+            for(int i = 0; i<16; i++){par->part_name[i] = '\0';}
+            //strcpy(par->part_name, "");
+            par->part_fit = '\0';
+            par->part_status = '\0';
+
+
+            fseek(file, 0, SEEK_SET);
+            fwrite(&mbr, sizeof(Mbr), 1, file);
+
+            cout << name << " DELETED"<<endl;
+            fclose(file);
+            return;
+        }
+
+        //buscar en logicas
+        if(mbr.mbr_partition_1.part_type == 'e'){
+            par = &mbr.mbr_partition_1;
+        }else if(mbr.mbr_partition_2.part_type == 'e'){
+            par = &mbr.mbr_partition_2;
+        }else if(mbr.mbr_partition_3.part_type == 'e'){
+            par = &mbr.mbr_partition_3;
+        }else if(mbr.mbr_partition_4.part_type == 'e'){
+            par = &mbr.mbr_partition_4;
+        }else{
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        Ebr ebr;
+        fseek(file, par->part_start, SEEK_SET);
+        fread(&ebr, sizeof(Ebr), 1, file);
+
+        if(ebr.part_start == 0 && ebr.part_next == 0){
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        int pointer = par->part_start;
+        vector<Ebr> partitions;
+        found = false;
+        int index = 0;
+
+        /*
+         * metemos las particiones dentro de un vector
+         */
+        while(pointer < par->part_start+par->part_size-1){
+            Ebr ebr;
+            fseek(file, pointer, SEEK_SET);
+            fread(&ebr, sizeof(Ebr), 1, file);
+
+            if(ToLower(ebr.part_name) == ToLower(name)){
+                found = true;
+                index = partitions.size();
+            }
+
+            if(ebr.part_next == -1){
+                partitions.push_back(ebr);
+                break;
+            }
+
+            partitions.push_back(ebr);
+
+            //pointer = ebr.part_start + ebr.part_s;
+            pointer = ebr.part_next;
+        }
+
+        if(!found){
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        if(index == partitions.size()-1){
+            partitions.at(index-1).part_next = -1;
+        }else if(index == 0){
+            cout << "THE FIRS LOGIC PARTITION CANNOT BE DELETED" << endl;
+            fclose(file);
+            return;
+        }else{
+            partitions.at(index-1).part_next = partitions.at(index).part_next;
+        }
+
+        fseek(file, partitions.at(index-1).part_start - sizeof(Ebr), SEEK_SET);
+        fwrite(&partitions.at(index-1), sizeof(Ebr), 1, file);
+
+        char c = '\0';
+        for(int i = partitions.at(index).part_start - sizeof(Ebr);
+            i < partitions.at(index).part_start+partitions.at(index).part_s;i++){
+            fseek(file, i, SEEK_SET);
+            fwrite(&c, 1, 1, file);
+        }
+
+        cout << name << " DELETED"<<endl;
+
         fclose(file);
         return;
     }else{

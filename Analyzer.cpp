@@ -13,6 +13,7 @@ void ExecuteMkdisk(int size, string unit, char fit, string path);
 void ExecuteRmdisk(string path);
 void ExecuteFdiskNewPartition(int size, string unit, string path, string type, char fit, string name);
 void ExecuteFdiskAddPartition(int add, string unit, string path, string name);
+void ExecuteFdiskDeletePartition(string path, string nameString);
 
 
 string ToLower(string data){
@@ -333,7 +334,7 @@ void ReadFdisk(vector<string> params){
     if(isAdd){
         ExecuteFdiskAddPartition(add, unit, path, partitionName);
     }else if(isDelete){
-
+        ExecuteFdiskDeletePartition(path, partitionName);
     }else{
         if(size == 0){
             cout << "$Error: SIZE is a mandatory parameter" << endl;
