@@ -17,6 +17,7 @@ void ExecuteFdiskAddPartition(int add, string unit, string path, string name);
 void ExecuteFdiskDeletePartition(string path, string nameString);
 void ExecuteMount(string p, string nameString, vector<MountedPartition> *partitions);
 void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
+void ExecuteExec(string path);
 
 vector<MountedPartition> mountedPartitions;
 
@@ -420,6 +421,32 @@ void ReadUnmount(vector<string> params){
     ExecuteUnmount(id, &mountedPartitions);
 }
 
+void ReadExec(vector<string> params){
+    string path = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-path-"){
+            path = ParameterId(value);
+            if(path == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteExec(path);
+}
+
 void ReadReport(vector<string> params){
 
 }
@@ -442,6 +469,8 @@ void Read(string str){
         ReadMount(command);
     }else if(cmd == "unmount"){
         ReadUnmount(command);
+    }else if(cmd == "exec"){
+        ReadExec(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

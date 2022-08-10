@@ -11,6 +11,7 @@
 using namespace std;
 
 string ToLower(string data);
+void Read(string str);
 
 bool Exist(string path){
     FILE *archivo;
@@ -21,6 +22,34 @@ bool Exist(string path){
     }
 
     return false;
+}
+
+bool hasEnding (std::string const &fullString, std::string const &ending) {
+    if (fullString.length() >= ending.length()) {
+        return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
+std::string trim(const std::string& str, const std::string& whitespace = " ") {
+    const auto strBegin = str.find_first_not_of(whitespace);
+    if (strBegin == std::string::npos) return "";
+    const auto strEnd = str.find_last_not_of(whitespace);
+    const auto strRange = strEnd - strBegin + 1;
+    return str.substr(strBegin, strRange);
+}
+
+string RemoveComment(string line){
+    string res="";
+    for(int i = 0; i < line.length(); i++){
+        if(line[i] == '#'){
+            break;
+        }
+        res += line[i];
+    }
+
+    return res;
 }
 
 string GetFileName(string path){
@@ -162,11 +191,6 @@ void ExecuteRmdisk(string path){
         cout << "$Error: "<< path <<" doesn't exist"<<endl;
     }
 }
-/*
- *
- * FDISK
- *
- */
 
 bool compareByStart(const Partition &a, const Partition &b)
 {
@@ -447,10 +471,6 @@ void ExecuteFdiskNewPartition(int size, string unit, string path, string type, c
                 pointer = ebr.part_next;
             }
 
-            /*for(int i = 0; i<partitions.size();i++){
-                cout << partitions.at(i).part_start<<" - "<<partitions.at(i).part_name <<" - "<<partitions.at(i).part_next<<endl;
-            }*/
-
             if(partitions.size()==23){
                 cout << "$Error: maximum of logic partitions reached" << endl;
                 fclose(file);
@@ -692,7 +712,6 @@ void ExecuteFdiskAddPartition(int add, string unit, string path, string nameStri
             partitions.push_back(ebr);
             availableSpace.push_back(ebr.part_next - (ebr.part_start+ebr.part_s));
 
-            //pointer = ebr.part_start + ebr.part_s;
             pointer = ebr.part_next;
         }
 
@@ -840,7 +859,6 @@ void ExecuteFdiskDeletePartition(string path, string nameString){
 
             partitions.push_back(ebr);
 
-            //pointer = ebr.part_start + ebr.part_s;
             pointer = ebr.part_next;
         }
 
@@ -1030,9 +1048,33 @@ void ExecuteUnmount(string id, vector<MountedPartition> *partitions){
         }
     }
 
-    /*for(int i = 0; i < partitions->size(); i++){
-        cout << partitions->at(i).id << endl;
-    }*/
-
     cout << "$Error: "<<id<<" is not mounted"<<endl;
+}
+
+void ExecuteExec(string path){
+    if(Exist(path)){
+        if(!hasEnding(path, ".mia")){
+            cout << "$Error: the file must have the extension .mia"<<endl;
+            return;
+        }
+
+        fstream file;
+        file.open(path, ios::in);
+
+        if(file.is_open()){
+            string line;
+            string finalLine;
+            while(getline(file, line)){
+                cout << line << endl;
+                finalLine = RemoveComment(line);
+                finalLine = trim(finalLine);
+                finalLine = trim(finalLine, "\t");
+                if(finalLine != ""){
+                    Read(finalLine);
+                }
+            }
+        }
+    }else{
+        cout << "$Error: "<< path <<" doesn't exist"<<endl;
+    }
 }
