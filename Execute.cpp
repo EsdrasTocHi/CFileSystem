@@ -23,6 +23,27 @@ bool Exist(string path){
     return false;
 }
 
+string GetFileName(string path){
+    string name = "";
+    int state = 0;
+    for(int i = path.length()-1; i>=0; i--){
+        if(state == 0) {
+            if (path[i] == '.') {
+                state = 1;
+            }
+            continue;
+        }
+
+        if(path[i] == '/' || path[i] == '\\'){
+            break;
+        }
+
+        name = path[i] + name;
+    }
+
+    return name;
+}
+
 const string currentDateTime() {
     time_t now = time(0);
     struct tm tstruct;
@@ -856,4 +877,162 @@ void ExecuteFdiskDeletePartition(string path, string nameString){
     }else{
         cout << "$Error: "<< path <<" doesn't exist"<<endl;
     }
+}
+
+void ExecuteMount(string p, string nameString, vector<MountedPartition> *partitions){
+    if(Exist(p)){
+        char name[16];
+        for(int i = 0; i < 16; i++){
+            if(i < nameString.length()) {
+                name[i] = nameString[i];
+                continue;
+            }
+            name[i] = '\0';
+        }
+
+        FILE *file;
+        Mbr mbr;
+        file = fopen(p.c_str(), "rb+");
+        fseek(file, 0, SEEK_SET);
+        fread(&mbr, sizeof(Mbr), 1, file);
+
+        Partition *par;
+        bool found = false;
+        int partitionNumber = 0;
+
+        if(ToLower(mbr.mbr_partition_1.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_1;
+            found = true;
+            partitionNumber = 1;
+        }else if(ToLower(mbr.mbr_partition_2.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_2;
+            found = true;
+            partitionNumber = 2;
+        }else if(ToLower(mbr.mbr_partition_3.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_3;
+            found = true;
+            partitionNumber = 3;
+        }else if(ToLower(mbr.mbr_partition_4.part_name) == ToLower(name)){
+            par = &mbr.mbr_partition_4;
+            found = true;
+            partitionNumber = 4;
+        }
+
+        int numberOfPartitions=0;
+        if(mbr.mbr_partition_1.part_start != 0){
+            numberOfPartitions++;
+        }
+        if(mbr.mbr_partition_2.part_start != 0){
+            numberOfPartitions++;
+        }
+        if(mbr.mbr_partition_3.part_start != 0){
+            numberOfPartitions++;
+        }
+        if(mbr.mbr_partition_4.part_start != 0){
+            numberOfPartitions++;
+        }
+
+        if(found){
+            if(par->part_type == 'e'){
+                cout << "$Error: extender partitions cannot be mounted"<<endl;
+                return;
+            }
+            MountedPartition newMount;
+            newMount.par = *par;
+            newMount.isLogic = false;
+            newMount.path = p;
+            newMount.id = "73"+ to_string(partitionNumber) + GetFileName(p);
+
+            partitions->push_back(newMount);
+            cout << "PATITION MOUNTED, ID -> " << newMount.id <<endl;
+            return;
+        }
+
+        //buscar en logicas
+        if(mbr.mbr_partition_1.part_type == 'e'){
+            par = &mbr.mbr_partition_1;
+        }else if(mbr.mbr_partition_2.part_type == 'e'){
+            par = &mbr.mbr_partition_2;
+        }else if(mbr.mbr_partition_3.part_type == 'e'){
+            par = &mbr.mbr_partition_3;
+        }else if(mbr.mbr_partition_4.part_type == 'e'){
+            par = &mbr.mbr_partition_4;
+        }else{
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        Ebr ebr;
+        fseek(file, par->part_start, SEEK_SET);
+        fread(&ebr, sizeof(Ebr), 1, file);
+
+        if(ebr.part_start == 0 && ebr.part_next == 0){
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        int pointer = par->part_start;
+        vector<Ebr> logicpartitions;
+        found = false;
+        int index = 0;
+
+        /*
+         * metemos las particiones dentro de un vector
+         */
+        while(pointer < par->part_start+par->part_size-1){
+            Ebr ebr;
+            fseek(file, pointer, SEEK_SET);
+            fread(&ebr, sizeof(Ebr), 1, file);
+
+            if(ToLower(ebr.part_name) == ToLower(name)){
+                found = true;
+                index = logicpartitions.size();
+            }
+
+            numberOfPartitions++;
+            if(ebr.part_next == -1){
+                logicpartitions.push_back(ebr);
+                break;
+            }
+
+            logicpartitions.push_back(ebr);
+            pointer = ebr.part_next;
+        }
+
+        if(!found){
+            fclose(file);
+            cout << "$Error: the partition doesn't exist"<<endl;
+            return;
+        }
+
+        MountedPartition newMount;
+        newMount.logicPar = logicpartitions.at(index);
+        newMount.isLogic = true;
+        newMount.path = p;
+        newMount.id = "73"+ to_string(numberOfPartitions) + GetFileName(p);
+
+        partitions->push_back(newMount);
+        cout << "PATITION MOUNTED, ID -> " << newMount.id <<endl;
+        return;
+    }else{
+        cout << "$Error: "<< p <<" doesn't exist"<<endl;
+    }
+}
+
+void ExecuteUnmount(string id, vector<MountedPartition> *partitions){
+    for(int i = 0; i < partitions->size(); i++){
+        if(partitions->at(i).id == id){
+            partitions->erase(partitions->begin()+i);
+            cout << "THE PARTITION WAS UNMOUNTED SUCCESSFULLY"<<endl;
+            return;
+        }
+    }
+
+    /*for(int i = 0; i < partitions->size(); i++){
+        cout << partitions->at(i).id << endl;
+    }*/
+
+    cout << "$Error: "<<id<<" is not mounted"<<endl;
 }

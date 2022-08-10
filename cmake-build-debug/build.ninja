@@ -67,6 +67,12 @@ build CMakeFiles/MIA_Proyecto1_201807373.dir/Analyzer.cpp.o: CXX_COMPILER__MIA_P
   OBJECT_DIR = CMakeFiles/MIA_Proyecto1_201807373.dir
   OBJECT_FILE_DIR = CMakeFiles/MIA_Proyecto1_201807373.dir
 
+build CMakeFiles/MIA_Proyecto1_201807373.dir/Report.cpp.o: CXX_COMPILER__MIA_Proyecto1_201807373_Debug /home/esdras-toc/Documentos/Archivos/MIA_Proyecto1_201807373/Report.cpp || cmake_object_order_depends_target_MIA_Proyecto1_201807373
+  DEP_FILE = CMakeFiles/MIA_Proyecto1_201807373.dir/Report.cpp.o.d
+  FLAGS = -g
+  OBJECT_DIR = CMakeFiles/MIA_Proyecto1_201807373.dir
+  OBJECT_FILE_DIR = CMakeFiles/MIA_Proyecto1_201807373.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target MIA_Proyecto1_201807373
@@ -75,7 +81,7 @@ build CMakeFiles/MIA_Proyecto1_201807373.dir/Analyzer.cpp.o: CXX_COMPILER__MIA_P
 #############################################
 # Link the executable MIA_Proyecto1_201807373
 
-build MIA_Proyecto1_201807373: CXX_EXECUTABLE_LINKER__MIA_Proyecto1_201807373_Debug CMakeFiles/MIA_Proyecto1_201807373.dir/main.cpp.o CMakeFiles/MIA_Proyecto1_201807373.dir/Execute.cpp.o CMakeFiles/MIA_Proyecto1_201807373.dir/Analyzer.cpp.o
+build MIA_Proyecto1_201807373: CXX_EXECUTABLE_LINKER__MIA_Proyecto1_201807373_Debug CMakeFiles/MIA_Proyecto1_201807373.dir/main.cpp.o CMakeFiles/MIA_Proyecto1_201807373.dir/Execute.cpp.o CMakeFiles/MIA_Proyecto1_201807373.dir/Analyzer.cpp.o CMakeFiles/MIA_Proyecto1_201807373.dir/Report.cpp.o
   FLAGS = -g
   OBJECT_DIR = CMakeFiles/MIA_Proyecto1_201807373.dir
   POST_BUILD = :

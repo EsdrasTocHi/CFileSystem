@@ -8,13 +8,17 @@ using namespace std;
 #include "iostream"
 #include "string.h"
 #include "fstream"
+#include "Structures.h"
 
 void ExecuteMkdisk(int size, string unit, char fit, string path);
 void ExecuteRmdisk(string path);
 void ExecuteFdiskNewPartition(int size, string unit, string path, string type, char fit, string name);
 void ExecuteFdiskAddPartition(int add, string unit, string path, string name);
 void ExecuteFdiskDeletePartition(string path, string nameString);
+void ExecuteMount(string p, string nameString, vector<MountedPartition> *partitions);
+void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
 
+vector<MountedPartition> mountedPartitions;
 
 string ToLower(string data){
     for_each(data.begin(), data.end(), [](char & c){
@@ -189,6 +193,15 @@ int ParameterAdd(string str){
 
     return size;
 }
+
+string ParameterId(string str){
+    if(str != ""){
+        return str;
+    }
+
+    cout << "$Error: Id parameter cannot be empty"<<endl;
+    return "";
+}
 /*
  *
  * READ COMMANDS
@@ -197,7 +210,7 @@ int ParameterAdd(string str){
 void ReadMkdisk(vector<string> params){
     string path, unit = "m";
     char fit = 'F';
-    int size;
+    int size = 0;
     for(int i = 0; i < params.size(); i++){
         vector<string> param = Split(params[i], '>');
         string name = ToLower(param[0]);
@@ -243,7 +256,7 @@ void ReadMkdisk(vector<string> params){
 }
 
 void ReadRmdisk(vector<string> params){
-    string path;
+    string path = "";
 
     for(int i = 0; i < params.size(); i++){
         vector<string> param = Split(params[i], '>');
@@ -269,7 +282,7 @@ void ReadRmdisk(vector<string> params){
 }
 
 void ReadFdisk(vector<string> params){
-    string path, unit = "k", partitionName = "", type = "p";
+    string path = "", unit = "k", partitionName = "", type = "p";
     char fit = 'W';
     int size = 0, add=0;
     bool isAdd = false, isDelete = false;
@@ -345,6 +358,72 @@ void ReadFdisk(vector<string> params){
     }
 }
 
+void ReadMount(vector<string> params){
+    string path = "", partitionName = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else if(name == "-name-"){
+            partitionName = ParameterName(value);
+            if(partitionName == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    if(partitionName == ""){
+        cout << "$Error: NAME is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteMount(path, partitionName, &mountedPartitions);
+}
+
+void ReadUnmount(vector<string> params){
+    string id = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-id-"){
+            id = ParameterId(value);
+            if(id == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(id == ""){
+        cout << "$Error: ID is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteUnmount(id, &mountedPartitions);
+}
+
+void ReadReport(vector<string> params){
+
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');
@@ -357,6 +436,12 @@ void Read(string str){
         ReadRmdisk(command);
     }else if(cmd == "fdisk"){
         ReadFdisk(command);
+    }else if(cmd == "rep"){
+        ReadReport(command);
+    }else if(cmd == "mount"){
+        ReadMount(command);
+    }else if(cmd == "unmount"){
+        ReadUnmount(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

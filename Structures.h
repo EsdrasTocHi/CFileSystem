@@ -36,4 +36,18 @@ typedef struct{
     char part_name[16];
 }Ebr;
 
+
+
+/*
+ *
+ * UTILIDADES
+ *
+ */
+typedef struct{
+    Partition par;
+    Ebr logicPar;
+    bool isLogic;
+    string path;
+    string id;
+}MountedPartition;
 #endif //MIA_PROYECTO1_201807373_STRUCTURES_H
