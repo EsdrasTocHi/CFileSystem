@@ -8,12 +8,113 @@ using namespace std;
 
 bool Exist(string path);
 
-string ReportLogicPartitionMbr(Partition extendedPar){
-    return "";
+string ReportLogicPartitionMbr(Ebr ebr){
+    string content = "<table class=\"table table-success table-striped\">\n";
+    content += "            <thead>\n";
+    content += "                <tr>PARTICION LOGICA</tr>\n";
+    content += "            </thead>\n";
+    content += "            <tbody>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_status</td>\n";
+    content += "                    <td>";
+    content += ebr.part_status;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_next</td>\n";
+    content += "                    <td>";
+    content += ebr.part_next;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_fit</td>\n";
+    content += "                    <td>";
+    content += ebr.part_fit;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_start</td>\n";
+    content += "                    <td>"+ to_string(ebr.part_start)+"</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_size</td>\n";
+    content += "                    <td>"+ to_string(ebr.part_s)+"</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_name</td>\n";
+    content += "                    <td>"+string(ebr.part_name)+"</td>\n";
+    content += "                </tr>\n";
+    content += "            </tbody>\n";
+    content += "        </table>";
+
+    return content;
 }
 
-string ReportPartitionMbr(Partition par){
-return "";
+string ReportPartitionMbr(Partition partition, FILE *file){
+    if(partition.part_start == 0){
+        return "";
+    }
+
+    string content = "<table class=\"table\">\n";
+    content += "            <thead>\n";
+    content += "                <tr>PARTICION</tr>\n";
+    content += "            </thead>\n";
+    content += "            <tbody>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_status</td>\n";
+    content += "                    <td>";
+    content += partition.part_status;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_type</td>\n";
+    content += "                    <td>";
+    content += partition.part_type;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_fit</td>\n";
+    content += "                    <td>";
+    content += partition.part_fit;
+    content += "</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_start</td>\n";
+    content += "                    <td>"+ to_string(partition.part_start)+"</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_size</td>\n";
+    content += "                    <td>"+ to_string(partition.part_size)+"</td>\n";
+    content += "                </tr>\n";
+    content += "                <tr>\n";
+    content += "                    <td>part_name</td>\n";
+    content += "                    <td>"+string(partition.part_name)+"</td>\n";
+    content += "                </tr>\n";
+    content += "            </tbody>\n";
+    content += "        </table>";
+
+    if(partition.part_type == 'e'){
+        Ebr ebr;
+        int pointer = partition.part_start;
+
+        while(true){
+            fseek(file, pointer, SEEK_SET);
+            fread(&ebr, sizeof(Ebr), 1, file);
+            if(ebr.part_start == 0){
+                break;
+            }
+
+            content += ReportLogicPartitionMbr(ebr);
+
+            if(ebr.part_next == -1){
+                break;
+            }
+
+            pointer = ebr.part_next;
+        }
+    }
+
+    return content;
 }
 
 void ReportMbr(string path){
@@ -45,19 +146,12 @@ void ReportMbr(string path){
         content +="            </tbody>\n";
         content +="        </table>";
 
-        if(mbr.mbr_partition_1.part_start != 0){
-            content += ReportPartitionMbr(mbr.mbr_partition_1);
-        }
-        if(mbr.mbr_partition_2.part_start != 0){
-            content += ReportPartitionMbr(mbr.mbr_partition_2);
-        }
-        if(mbr.mbr_partition_3.part_start != 0){
-            content += ReportPartitionMbr(mbr.mbr_partition_3);
-        }
-        if(mbr.mbr_partition_4.part_start != 0){
-            content += ReportPartitionMbr(mbr.mbr_partition_4);
-        }
+        content += ReportPartitionMbr(mbr.mbr_partition_1, file);
+        content += ReportPartitionMbr(mbr.mbr_partition_2, file);
+        content += ReportPartitionMbr(mbr.mbr_partition_3, file);
+        content += ReportPartitionMbr(mbr.mbr_partition_4, file);
 
+        fclose(file);
         string report = "digraph G{\n";
         report += "content[ label = <";
         report += content;

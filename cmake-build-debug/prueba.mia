@@ -1,0 +1,4 @@
+	      #este es el primer comentario
+	      
+   mkdisk -path->primerCarpeta/disco1.dsk -s->10 -u->k #segundo comentario
+	mkdisk -path->disco1.dsk -s->10 -u->k #tercer comentario
