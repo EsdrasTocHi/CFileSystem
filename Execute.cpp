@@ -957,6 +957,7 @@ void ExecuteMount(string p, string nameString, vector<MountedPartition> *partiti
         if(found){
             if(par->part_type == 'e'){
                 cout << "$Error: extender partitions cannot be mounted"<<endl;
+                fclose(file);
                 return;
             }
             MountedPartition newMount;
@@ -967,6 +968,20 @@ void ExecuteMount(string p, string nameString, vector<MountedPartition> *partiti
 
             partitions->push_back(newMount);
             cout << "PATITION MOUNTED, ID -> " << newMount.id <<endl;
+
+            fseek(file, par->part_start, SEEK_SET);
+            SuperBlock sp;
+            fread(&sp, sizeof(SuperBlock), 1, file);
+
+            if(sp.s_filesystem_type != 0){
+                sp.s_mnt_count += 1;
+                strcpy(sp.s_mtime, currentDateTime().c_str());
+
+                fseek(file, par->part_start, SEEK_SET);
+                fwrite(&sp, sizeof(SuperBlock), 1, file);
+            }
+
+            fclose(file);
             return;
         }
 
@@ -1035,8 +1050,21 @@ void ExecuteMount(string p, string nameString, vector<MountedPartition> *partiti
         newMount.path = p;
         newMount.id = "73"+ to_string(numberOfPartitions) + GetFileName(p);
 
+        fseek(file, logicpartitions.at(index).part_start, SEEK_SET);
+        SuperBlock sp;
+        fread(&sp, sizeof(SuperBlock), 1, file);
+
+        if(sp.s_filesystem_type != 0){
+            sp.s_mnt_count += 1;
+            strcpy(sp.s_mtime, currentDateTime().c_str());
+
+            fseek(file, logicpartitions.at(index).part_start, SEEK_SET);
+            fwrite(&sp, sizeof(SuperBlock), 1, file);
+        }
+
         partitions->push_back(newMount);
         cout << "PATITION MOUNTED, ID -> " << newMount.id <<endl;
+        fclose(file);
         return;
     }else{
         cout << "$Error: "<< p <<" doesn't exist"<<endl;
@@ -1046,8 +1074,29 @@ void ExecuteMount(string p, string nameString, vector<MountedPartition> *partiti
 void ExecuteUnmount(string id, vector<MountedPartition> *partitions){
     for(int i = 0; i < partitions->size(); i++){
         if(partitions->at(i).id == id){
+
+            SuperBlock sp;
+            FILE *file;
+            file = fopen(partitions->at(i).path.c_str(), "rb+");
+            int pointer = 0;
+            if(partitions->at(i).isLogic) {
+                pointer = partitions->at(i).logicPar.part_start;
+            }else{
+                pointer = partitions->at(i).par.part_start;
+            }
+
+            fseek(file, pointer, SEEK_SET);
+            fread(&sp, sizeof(SuperBlock), 1, file);
+
+            if(sp.s_filesystem_type != 0){
+                strcpy(sp.s_umtime, currentDateTime().c_str());
+                fseek(file, pointer, SEEK_SET);
+                fwrite(&sp, sizeof(SuperBlock), 1, file);
+            }
+
             partitions->erase(partitions->begin()+i);
             cout << "THE PARTITION WAS UNMOUNTED SUCCESSFULLY"<<endl;
+            fclose(file);
             return;
         }
     }
