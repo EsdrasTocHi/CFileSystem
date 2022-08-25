@@ -203,6 +203,70 @@ string ParameterId(string str){
     cout << "$Error: Id parameter cannot be empty"<<endl;
     return "";
 }
+
+bool ParameterTypeFull(string cmd){
+    string val = ToLower(cmd);
+
+    if(val == "full"){
+        return true;
+    }
+
+    cout << "$Error: "<<cmd<<" is not valid"<<endl;
+    return false;
+}
+
+int ParameterFs(string str){
+    str = ToLower(str);
+
+    if(str == "2fs"){
+        return 2;
+    }
+
+    if(str == "3fs"){
+        return 3;
+    }
+
+    cout << "$Error: " << str << " is not valid" << endl;
+    return 0;
+}
+
+string ParameterCredential(string str){
+    if(str == ""){
+        cout << "$Error: credentials must not be empty" << endl;
+        return "";
+    }
+
+    return str;
+}
+
+string ParameterGrp(string str){
+    if(str == ""){
+        cout << "$Error: GRP must not be empty" << endl;
+        return "";
+    }
+
+    return str;
+}
+
+int ParameterUGO(string str){
+    int size;
+    try {
+        size = stoi(str);
+    }catch (...) {
+        cout << "$Error: UGO parameter must be numeric"<<endl;
+        return -1;
+    }
+
+    if(size <= 0){
+        cout<< "$Error: The UGO value must be greater than zero"<<endl;
+    }else if(size > 777){
+        cout<< "$Error: The UGO value must be less than 777"<<endl;
+    }else{
+        return size;
+    }
+
+    return -1;
+}
 /*
  *
  * READ COMMANDS
@@ -447,6 +511,238 @@ void ReadExec(vector<string> params){
     ExecuteExec(path);
 }
 
+void ReadMkfs(vector<string> params){
+    string id = "";
+    bool full = true;
+    int fs = 2;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-id-"){
+            id = ParameterPath(value);
+            if(id == ""){
+                return;
+            }
+        }else if(name == "-type-"){
+            full = ParameterTypeFull(value);
+            if(!full){
+                return;
+            }
+        }else if(name == "-fs-"){
+            fs = ParameterFs(value);
+            if(fs == 0){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(id == ""){
+        cout << "$Error: ID is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadLogin(vector<string> params){
+    string id = "", usr = "", passw = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-id-"){
+            id = ParameterPath(value);
+            if(id == ""){
+                return;
+            }
+        }else if(name == "-usr-"){
+            usr = ParameterCredential(value);
+            if(usr == ""){
+                return;
+            }
+        }else if(name == "-pass-"){
+            passw = ParameterCredential(value);
+            if(passw == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(id == ""){
+        cout << "$Error: ID is a mandatory parameter" << endl;
+        return;
+    }
+    if(usr == ""){
+        cout << "$Error: USR is a mandatory parameter" << endl;
+        return;
+    }
+    if(passw == ""){
+        cout << "$Error: PASS is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadMkgrp(vector<string> params){
+    string nameGrp = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-name-"){
+            nameGrp = ParameterName(value);
+            if(nameGrp == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(nameGrp == ""){
+        cout << "$Error: NAME is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadRmgrp(vector<string> params){
+    string nameGrp = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-grp-"){
+            nameGrp = ParameterName(value);
+            if(nameGrp == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(nameGrp == ""){
+        cout << "$Error: NAME is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadMkusr(vector<string> params){
+    string nameGrp = "", usr = "", passw = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-grp-"){
+            nameGrp = ParameterGrp(value);
+            if(nameGrp == ""){
+                return;
+            }
+        }else if(name == "-usr-"){
+            usr = ParameterCredential(value);
+            if(usr == ""){
+                return;
+            }
+        }else if(name == "-pass-"){
+            passw = ParameterCredential(value);
+            if(passw == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(nameGrp == ""){
+        cout << "$Error: GRP is a mandatory parameter" << endl;
+        return;
+    }
+    if(passw == ""){
+        cout << "$Error: PASS is a mandatory parameter" << endl;
+        return;
+    }
+    if(usr == ""){
+        cout << "$Error: USR is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadRmusr(vector<string> params){
+    string nameUsr = "";
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+        if(name == "-usr-"){
+            nameUsr = ParameterCredential(value);
+            if(nameUsr == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(nameUsr == ""){
+        cout << "$Error: USR is a mandatory parameter" << endl;
+        return;
+    }
+}
+
+void ReadChmod(vector<string> params){
+    string path = "";
+    int ugo = -1;
+    bool r = false;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        if(name == "-r"){
+            r = true;
+            continue;
+        }
+        string value = param[1];
+
+        if(name == "-ugo-"){
+            ugo = ParameterUGO(value);
+            if(ugo == -1){
+                return;
+            }
+        }else if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+    if(ugo == -1){
+        cout << "$Error: UGO is a mandatory parameter" << endl;
+        return;
+    }
+}
+
 void ReadReport(vector<string> params){
 
 }
@@ -471,6 +767,20 @@ void Read(string str){
         ReadUnmount(command);
     }else if(cmd == "exec"){
         ReadExec(command);
+    }else if(cmd == "mkfs"){
+        ReadMkfs(command);
+    }else if(cmd == "login"){
+        ReadLogin(command);
+    }else if(cmd == "mkgrp"){
+        ReadMkgrp(command);
+    }else if(cmd == "rmgrp"){
+        ReadRmgrp(command);
+    }else if(cmd == "mkusr"){
+        ReadMkusr(command);
+    }else if(cmd == "rmusr"){
+        ReadRmusr(command);
+    }else if(cmd == "chmod"){
+        ReadChmod(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

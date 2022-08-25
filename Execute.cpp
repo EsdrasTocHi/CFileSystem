@@ -85,6 +85,10 @@ const string currentDateTime() {
 
 void ExecuteMkdisk(int size, string unit, char fit, string path){
     if(!(Exist(path))){
+        if(!hasEnding(path, ".dk")){
+            cout << "$Error: the file must have the extension .dk"<<endl;
+            return;
+        }
         FILE *file;
         char buff='\0';
         int signature;

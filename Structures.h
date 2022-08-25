@@ -36,7 +36,46 @@ typedef struct{
     char part_name[16];
 }Ebr;
 
+typedef struct{
+    int s_filesystem_type;
+    int s_inodes_count;
+    int s_blocks_count;
+    int s_free_blocks_counts;
+    int s_free_inodes_count;
+    char s_mtime[19];
+    char s_umtime[19];
+    int s_mnt_count;
+    int s_magic;
+    int s_inode_s;
+    int s_block_s;
+    int s_first_ino;
+    int s_first_blo;
+    int s_bm_inode_start;
+    int s_bm_block_start;
+    int s_inode_start;
+    int s_block_start;
+}SuperBlock;
 
+typedef struct {
+    int i_uid;
+    int i_gid;
+    int i_s;
+    char i_atime[19];
+    char i_ctime[19];
+    char i_mtime[19];
+    int i_block;
+    char i_type;
+    int i_perm;
+}Inode;
+
+typedef struct{
+    char b_name[12];
+    int b_inodo;
+}Content;
+
+typedef struct{
+    Content b_content[4];
+}DirBlock;
 
 /*
  *
