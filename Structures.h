@@ -63,7 +63,8 @@ typedef struct {
     char i_atime[19];
     char i_ctime[19];
     char i_mtime[19];
-    int i_block;
+    int i_block[15];
+    //1 = archivo, 0 = carpeta
     char i_type;
     int i_perm;
 }Inode;
@@ -77,6 +78,14 @@ typedef struct{
     Content b_content[4];
 }DirBlock;
 
+typedef struct{
+    char b_content[64];
+}FileBlock;
+
+typedef struct{
+    int b_pointers[16];
+}PointerBlock;
+
 /*
  *
  * UTILIDADES
@@ -89,4 +98,16 @@ typedef struct{
     string path;
     string id;
 }MountedPartition;
+
+typedef struct{
+    int id;
+    char group[10];
+    char name[10];
+    char password[10];
+}User;
+
+typedef struct{
+    User user;
+    MountedPartition mountedPartition;
+}Sesion;
 #endif //MIA_PROYECTO1_201807373_STRUCTURES_H

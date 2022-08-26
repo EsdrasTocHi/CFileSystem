@@ -8,6 +8,7 @@
 #include "Structures.h"
 #include "string.h"
 #include "fstream"
+#include "math.h"
 using namespace std;
 
 string ToLower(string data);
@@ -1129,5 +1130,160 @@ void ExecuteExec(string path){
         }
     }else{
         cout << "$Error: "<< path <<" doesn't exist"<<endl;
+    }
+}
+
+Inode newInode(){
+    Inode inode;
+    char bufferDate[19];
+
+    for(int i = 0; i < 19; i++){
+        bufferDate[i] = '\0';
+    }
+
+    inode.i_uid = 1;
+    inode.i_gid = 1;
+    inode.i_s = 0;
+    strcpy(inode.i_atime, bufferDate);
+    strcpy(inode.i_ctime, currentDateTime().c_str());
+    strcpy(inode.i_mtime, currentDateTime().c_str());
+    for(int i = 0; i < 15; i++){
+        inode.i_block[i] = -1;
+    }
+    inode.i_type = '0';
+    inode.i_perm = 0;
+
+    return inode;
+}
+
+void ext2(MountedPartition *mountedPartition){
+    int sizeOfPartition, start;
+    if(mountedPartition->isLogic){
+        sizeOfPartition = mountedPartition->logicPar.part_s;
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        sizeOfPartition = mountedPartition->par.part_size;
+        start = mountedPartition->par.part_start;
+    }
+
+    int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock)));
+    int num_blocks = 3*num_structures;
+
+    SuperBlock sp;
+    sp.s_filesystem_type = 2;
+    sp.s_inodes_count = num_structures;
+    sp.s_blocks_count = num_blocks;
+    sp.s_free_blocks_counts = num_blocks - 2;
+    sp.s_free_inodes_count = num_structures - 2;
+    sp.s_mnt_count = 0;
+    sp.s_magic = 0xEF53;
+    sp.s_inode_s = sizeof(Inode);
+    sp.s_block_s = sizeof(FileBlock);
+    sp.s_first_ino = 2;
+    sp.s_first_blo = 2;
+    sp.s_bm_inode_start = start + sizeof(SuperBlock) - 1;
+    sp.s_bm_block_start = sp.s_bm_inode_start + num_structures;
+    sp.s_inode_start = sp.s_bm_block_start + num_blocks;
+    sp.s_block_start = sp.s_inode_start + (num_structures * sizeof(Inode));
+
+    FILE *file;
+    file = fopen(mountedPartition->path.c_str(), "rb+");
+    //Creando la estructura:
+    //   creamos el super bloque
+    fseek(file, start, SEEK_SET);
+    fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+    // creamos el bitmap de inodos pero previamente colocamos el inodo de / y de users.txt
+    char b1 = '1';
+    fwrite(&b1, 1, 1, file);
+    fwrite(&b1, 1, 1, file);
+    char b0 = '0';
+    for(int i = 2; i < num_structures; i++){
+        fwrite(&b0, 1, 1, file);
+    }
+
+    // creamos el bitmap de bloques los bloques para / y users.txt
+    fwrite(&b1, 1, 1, file);
+    fwrite(&b1, 1, 1, file);
+    for(int i = 2; i < num_blocks; i++){
+        fwrite(&b0, 1, 1, file);
+    }
+
+    //creamos e insertamos el primer inodo de /
+    Inode inode = newInode();
+    inode.i_block[0] = 0;
+    inode.i_perm = 664;
+
+    fwrite(&inode, sizeof(Inode), 1, file);
+
+    //creamos el inodo para users.txt
+    inode = newInode();
+    inode.i_s = 27;
+    inode.i_block[0] = 1;
+    inode.i_type = '1';
+    inode.i_perm = 755;
+
+    fwrite(&inode, sizeof(Inode), 1, file);
+    //creamos el bloque para la carpeta /
+    DirBlock dirBlock;
+
+    strcpy(dirBlock.b_content[0].b_name, ".");
+    dirBlock.b_content[0].b_inodo = 0;
+    strcpy(dirBlock.b_content[1].b_name, "..");
+    dirBlock.b_content[1].b_inodo = 0;
+    strcpy(dirBlock.b_content[2].b_name, "users.txt");
+    dirBlock.b_content[2].b_inodo = 1;
+
+    strcpy(dirBlock.b_content[3].b_name, "\0");
+    dirBlock.b_content[3].b_inodo = -1;
+
+    fseek(file, sp.s_block_start, SEEK_SET);
+    fwrite(&dirBlock, sizeof(DirBlock), 1, file);
+
+    // creamos el bloque para users.txt
+    FileBlock fileBlock;
+    memset(fileBlock.b_content, 0, sizeof(fileBlock.b_content));
+    strcpy(fileBlock.b_content, "1,G,root\n1,U,root,root,123\n");
+    fwrite(&fileBlock, sizeof(FileBlock), 1, file);
+
+    fclose(file);
+    cout << "EXT2 FORMAT DONE SUCCESFULLY"<<endl;
+
+    return;
+}
+
+void ext3(MountedPartition *mountedPartition) {
+    int sizeOfPartition, start;
+    if (mountedPartition->isLogic) {
+        sizeOfPartition = mountedPartition->logicPar.part_s;
+        start = mountedPartition->logicPar.part_start;
+    } else {
+        sizeOfPartition = mountedPartition->par.part_size;
+        start = mountedPartition->par.part_start;
+    }
+
+    int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock) + sizeof()));
+    int num_blocks = 3*num_structures;
+}
+
+void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
+    MountedPartition *mountedPartition;
+    int i = 0;
+    for(i = 0; i < partitions->size(); i++){
+        if(id == partitions->at(i).id){
+            mountedPartition = &(partitions->at(i));
+            break;
+        }
+    }
+
+    if(i == partitions->size()){
+        cout << "$Error: "<<id<<" is not mounted"<<endl;
+        return;
+    }
+
+    if(fs == 2){
+        ext2(mountedPartition);
+    }else{
+
     }
 }

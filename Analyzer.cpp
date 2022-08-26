@@ -20,6 +20,8 @@ void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
 void ExecuteExec(string path);
 
 vector<MountedPartition> mountedPartitions;
+Sesion currentUser;
+bool activeUser = false;
 
 string ToLower(string data){
     for_each(data.begin(), data.end(), [](char & c){
