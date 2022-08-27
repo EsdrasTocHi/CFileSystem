@@ -208,3 +208,91 @@ void ReportMbr(string path, string imagePath){
         cout << "$Error: the disk doesn't exist"<<endl;
     }
 }
+
+void ReportBMInode(MountedPartition *mountedPartition, string path){
+    int start, inodes;
+    SuperBlock sp;
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+        fseek(file, start, SEEK_SET);
+        fread(&sp, sizeof(SuperBlock), 1, file);
+    }else{
+        start = mountedPartition->par.part_start;
+        fseek(file, start, SEEK_SET);
+        fread(&sp, sizeof(SuperBlock), 1, file);
+    }
+
+    if(sp.s_filesystem_type == 0){
+        fclose(file);
+        cout << "$Error: bitmap does not exists" << endl;
+        return;
+    }
+
+    string content = "";
+    char bit;
+    fseek(file, sp.s_bm_inode_start, SEEK_SET);
+    int j = 1;
+    for(int i = sp.s_bm_inode_start; i < sp.s_bm_inode_start+sp.s_inodes_count; i++){
+        fread(&bit, 1, 1, file);
+        content += bit;
+        content += " ";
+
+        if(j%20 == 0){
+            content += "\n";
+        }
+        j++;
+    }
+
+    fclose(file);
+
+    file = fopen(path.c_str(), "w");
+    fwrite(content.c_str(), content.length(), 1, file);
+    fclose(file);
+
+    cout << "REPORT COMPLETED" << endl;
+}
+
+void ReportBMBlocks(MountedPartition *mountedPartition, string path){
+    int start;
+    SuperBlock sp;
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+        fseek(file, start, SEEK_SET);
+        fread(&sp, sizeof(SuperBlock), 1, file);
+    }else{
+        start = mountedPartition->par.part_start;
+        fseek(file, start, SEEK_SET);
+        fread(&sp, sizeof(SuperBlock), 1, file);
+    }
+
+    if(sp.s_filesystem_type == 0){
+        fclose(file);
+        cout << "$Error: bitmap does not exists" << endl;
+        return;
+    }
+
+    string content = "";
+    char bit;
+    fseek(file, sp.s_bm_block_start, SEEK_SET);
+    int j = 1;
+    for(int i = sp.s_bm_block_start; i < sp.s_bm_block_start+sp.s_blocks_count; i++){
+        fread(&bit, 1, 1, file);
+        content += bit;
+        content += " ";
+
+        if(j%20 == 0){
+            content += "\n";
+        }
+        j++;
+    }
+
+    fclose(file);
+
+    file = fopen(path.c_str(), "w");
+    fwrite(content.c_str(), content.length(), 1, file);
+    fclose(file);
+
+    cout << "REPORT COMPLETED" << endl;
+}

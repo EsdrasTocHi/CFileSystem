@@ -1134,6 +1134,8 @@ void ExecuteExec(string path){
 }
 
 void ReportMbr(string path, string imagePath);
+void ReportBMInode(MountedPartition *mountedPartition, string path);
+void ReportBMBlocks(MountedPartition *mountedPartition, string path);
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta){
     MountedPartition *mountedPartition;
     int i = 0;
@@ -1151,6 +1153,10 @@ void ExecuteReport(string id, string name, string path, vector<MountedPartition>
 
     if(ToLower(name) == "mbr"){
         ReportMbr(mountedPartition->path, path);
+    }else if(ToLower(name) == "bm_inode"){
+        ReportBMInode(mountedPartition, path);
+    }else if(ToLower(name) == "bm_block"){
+        ReportBMBlocks(mountedPartition, path);
     }
 }
 
@@ -1202,7 +1208,7 @@ void ext2(MountedPartition *mountedPartition){
     sp.s_block_s = sizeof(FileBlock);
     sp.s_first_ino = 2;
     sp.s_first_blo = 2;
-    sp.s_bm_inode_start = start + sizeof(SuperBlock) - 1;
+    sp.s_bm_inode_start = start + sizeof(SuperBlock);
     sp.s_bm_block_start = sp.s_bm_inode_start + num_structures;
     sp.s_inode_start = sp.s_bm_block_start + num_blocks;
     sp.s_block_start = sp.s_inode_start + (num_structures * sizeof(Inode));
