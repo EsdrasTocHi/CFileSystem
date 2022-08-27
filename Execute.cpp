@@ -1133,6 +1133,27 @@ void ExecuteExec(string path){
     }
 }
 
+void ReportMbr(string path, string imagePath);
+void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta){
+    MountedPartition *mountedPartition;
+    int i = 0;
+    for(i = 0; i < partitions->size(); i++){
+        if(id == partitions->at(i).id){
+            mountedPartition = &(partitions->at(i));
+            break;
+        }
+    }
+
+    if(i == partitions->size()){
+        cout << "$Error: "<<id<<" is not mounted"<<endl;
+        return;
+    }
+
+    if(ToLower(name) == "mbr"){
+        ReportMbr(mountedPartition->path, path);
+    }
+}
+
 Inode newInode(){
     Inode inode;
     char bufferDate[19];
@@ -1262,8 +1283,8 @@ void ext3(MountedPartition *mountedPartition) {
         start = mountedPartition->par.part_start;
     }
 
-    int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock) + sizeof()));
-    int num_blocks = 3*num_structures;
+    //int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock) + sizeof()));
+    //int num_blocks = 3*num_structures;
 }
 
 void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
@@ -1286,4 +1307,27 @@ void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
     }else{
 
     }
+}
+
+void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession){
+    if(*activeSession){
+        cout << "$Error: active session" << endl;
+        return;
+    }
+
+    int i = 0;
+    MountedPartition *mountedPartition;
+    for(i = 0; i < partitions->size(); i++){
+        if(id == partitions->at(i).id){
+            mountedPartition = &(partitions->at(i));
+            break;
+        }
+    }
+
+    if(i == partitions->size()){
+        cout << "$Error: "<<id<<" is not mounted"<<endl;
+        return;
+    }
+
+
 }

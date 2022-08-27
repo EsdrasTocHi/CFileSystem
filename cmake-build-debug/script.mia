@@ -1,0 +1,8 @@
+mkdisk -path->disco1.dk -s->5 -u->k
+fdisk -path->disco1.dk -s->1 -u->k -t->E -name->extendida
+fdisk -path->disco1.dk -s->1 -u->k -t->P -name->primaria
+fdisk -path->disco1.dk -s->300 -u->b -t->L -name->logica1
+fdisk -path->disco1.dk -s->300 -u->b -t->L -name->logica2
+fdisk -path->disco1.dk -s->300 -u->b -t->L -name->logica3
+mount -path->disco1.dk -name->primaria
+rep -name->mbr -id->732disco1 -path->mbr.jpeg

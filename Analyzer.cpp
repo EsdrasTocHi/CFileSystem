@@ -18,6 +18,8 @@ void ExecuteFdiskDeletePartition(string path, string nameString);
 void ExecuteMount(string p, string nameString, vector<MountedPartition> *partitions);
 void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
 void ExecuteExec(string path);
+void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions);
+void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -547,6 +549,8 @@ void ReadMkfs(vector<string> params){
         cout << "$Error: ID is a mandatory parameter" << endl;
         return;
     }
+
+    ExecuteMkfs(id, fs, &mountedPartitions);
 }
 
 void ReadLogin(vector<string> params){
@@ -746,7 +750,48 @@ void ReadChmod(vector<string> params){
 }
 
 void ReadReport(vector<string> params){
+    string path = "", reportName = "", id = "", ruta = "";
 
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+
+        if(name == "-name-"){
+            reportName = ParameterName(value);
+            if(reportName == ""){
+                return;
+            }
+        }else if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else if(name == "-id-"){
+            id = ParameterId(value);
+            if(id == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+    if(id == ""){
+        cout << "$Error: ID is a mandatory parameter" << endl;
+        return;
+    }
+    if(reportName == ""){
+        cout << "$Error: NAME is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteReport(id, reportName, path, &mountedPartitions, ruta);
 }
 
 void Read(string str){
