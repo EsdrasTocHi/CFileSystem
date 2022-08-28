@@ -20,6 +20,7 @@ void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
 void ExecuteExec(string path);
 void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions);
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta);
+void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -555,7 +556,6 @@ void ReadMkfs(vector<string> params){
 
 void ReadLogin(vector<string> params){
     string id = "", usr = "", passw = "";
-
     for(int i = 0; i < params.size(); i++){
         vector<string> param = Split(params[i], '>');
         string name = ToLower(param[0]);
@@ -593,6 +593,7 @@ void ReadLogin(vector<string> params){
         cout << "$Error: PASS is a mandatory parameter" << endl;
         return;
     }
+    ExecuteLogin(usr, passw, id, &mountedPartitions, &currentUser, &activeUser);
 }
 
 void ReadMkgrp(vector<string> params){
@@ -828,6 +829,8 @@ void Read(string str){
         ReadRmusr(command);
     }else if(cmd == "chmod"){
         ReadChmod(command);
+    }else if(cmd == "login"){
+        ReadLogin(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

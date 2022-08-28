@@ -1315,6 +1315,252 @@ void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
     }
 }
 
+vector<string> splitPath(string path){
+    vector<string> res;
+    string aux = "";
+    for(int i = 0; i < path.length(); i++){
+        if(path[i] == '/'){
+            if(i == 0){
+                continue;
+            }
+            res.push_back(aux);
+            aux = nullptr;
+            aux = "";
+            continue;
+        }
+
+        aux += path[i];
+
+        if(i == path.length()-1){
+            res.push_back(aux);
+        }
+    }
+
+    return res;
+}
+
+Inode searchInDirBlocks(int pointer, FILE *file, string name, int istart, int bstart){
+    DirBlock dirBlock;
+    Inode res;
+    res.i_type = 'n';
+
+    if(pointer == -1){
+        return res;
+    }
+
+    pointer = bstart+(pointer*64);
+    fseek(file, pointer, SEEK_SET);
+    fread(&dirBlock, sizeof(DirBlock), 1, file);
+    for(int i = 0; i < 4; i++){
+        if(dirBlock.b_content[i].b_name == name){
+            fseek(file, istart+(dirBlock.b_content[i].b_inodo * sizeof(Inode)), SEEK_SET);
+            fread(&res, sizeof(Inode), 1, file);
+            return res;
+        }
+    }
+    return res;
+}
+
+Inode searchFileInPointerBlocks(int dim, string name, FILE *file, int pointer, int istart, int bstart){
+    Inode res;
+    res.i_type = 'n';
+
+    if(pointer == -1){
+        return res;
+    }
+
+    pointer = bstart+(pointer*64);
+    PointerBlock pb;
+    fseek(file, pointer, SEEK_SET);
+    fread(&pb, sizeof(PointerBlock), 1, file);
+    if(dim == 1){
+        for(int i = 0; i < 16; i++){
+            res = searchInDirBlocks(pb.b_pointers[i], file, name, istart, bstart);
+            if(res.i_type != 'n'){
+                return res;
+            }
+        }
+    }else{
+        for(int i = 0; i < 16; i++){
+            res = searchFileInPointerBlocks(dim-1, name, file, pb.b_pointers[i], istart, bstart);
+            if(res.i_type != 'n'){
+                return res;
+            }
+        }
+    }
+
+    return res;
+}
+
+string readInFileBlocks(int pointer, FILE *file, int istart, int bstart){
+    FileBlock dirBlock;
+    string res = "";
+
+    if(pointer == -1){
+        return res;
+    }
+
+    pointer = bstart+(pointer*64);
+    fseek(file, pointer, SEEK_SET);
+    fread(&dirBlock, sizeof(FileBlock), 1, file);
+    res += dirBlock.b_content;
+    return res;
+}
+
+string readFileInPointerBlocks(int dim, FILE *file, int pointer, int istart, int bstart){
+    string res = "";
+    if(pointer == -1){
+        return res;
+    }
+
+    pointer = bstart+(pointer*64);
+    PointerBlock pb;
+    fseek(file, pointer, SEEK_SET);
+    fread(&pb, sizeof(PointerBlock), 1, file);
+    if(dim == 1){
+        for(int i = 0; i < 16; i++){
+            res += readInFileBlocks(pb.b_pointers[i], file, istart, bstart);
+        }
+    }else{
+        for(int i = 0; i < 16; i++){
+            res += readFileInPointerBlocks(dim-1,file, pb.b_pointers[i], istart, bstart);
+        }
+    }
+
+    return res;
+}
+
+Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int bstart){
+    int pointer;
+    Inode res;
+    res.i_type = 'n';
+
+    for(int i = 0; i < path.size(); i++){
+        if(inode.i_type == '0'){
+            for(int j = 0; j < 15; j++){
+                if(j < 12){
+                    res = searchInDirBlocks(inode.i_block[j], file, path.at(i), istart, bstart);
+                }else{
+                    res = searchFileInPointerBlocks(j-12, path.at(i), file, inode.i_block[j], istart, bstart);
+                }
+
+                if(res.i_type != 'n'){
+                    inode = res;
+                    break;
+                }
+            }
+
+            if(res.i_type == 'n'){
+                break;
+            }
+        }else{
+            res.i_type = 'n';
+            return res;
+        }
+    }
+
+    return res;
+}
+
+string readFile(FILE *file, Inode inode, int istart, int bstart){
+    int pointer;
+    string res = "";
+
+    if(inode.i_type == '1'){
+        for(int j = 0; j < 15; j++){
+            if(j < 12){
+                res += readInFileBlocks(inode.i_block[j], file, istart, bstart);
+            }else{
+                res += readFileInPointerBlocks(j-12, file, inode.i_block[j], istart, bstart);
+            }
+        }
+    }else{
+        res = nullptr;
+        cout << "$Error: yo can not read a directory" << endl;
+        return res;
+    }
+
+    return res;
+}
+
+vector<string> getLines(string content){
+    vector<string> res;
+    string aux = "";
+    for(int i = 0; i < content.length(); i++){
+        if(content[i] == '\n'){
+            res.push_back(aux);
+            aux = "";
+            continue;
+        }
+        aux += content[i];
+    }
+
+    return res;
+}
+
+bool isUser(string line){
+    int counter = 0;
+    for(int i = 0; i < line.length(); i++){
+        if(line[i] == ','){
+            counter++;
+        }
+    }
+
+    return counter == 4;
+}
+
+bool authenticate(string usr, string passw, Sesion *currentUser, string content){
+    vector<string> usersContent = getLines(content);
+    for(int i = 0; i < usersContent.size(); i++){
+        if(isUser(usersContent.at(i))){
+            int id, counter = 0;
+            string group, user, pass, aux = "";
+            for(int j = 0; j < usersContent.at(i).length(); j++){
+                if(usersContent.at(i)[j] == ',' || j == usersContent.at(i).length()-1){
+                    switch (counter) {
+                        case 0:
+                            id = stoi(aux);
+                            break;
+                        case 2:
+                            group = aux;
+                            break;
+                        case 3:
+                            user = aux;
+                            break;
+                        case 4:
+                            aux += usersContent.at(i)[j];
+                            pass = aux;
+                            break;
+                    }
+                    aux = "";
+                    counter++;
+                    continue;
+                }
+                aux += usersContent.at(i)[j];
+            }
+
+            if(usr == user){
+                if(pass == passw){
+                    if(id == 0){
+                        cout << "$Error: user deleted" << endl;
+                        return false;
+                    }
+                    strcpy(currentUser->user.group, group.c_str());
+                    currentUser->user.id = id;
+                    strcpy(currentUser->user.name, user.c_str());
+                    strcpy(currentUser->user.password, pass.c_str());
+                    return true;
+                }
+                cout << "$Error: incorrect password" << endl;
+                return false;
+            }
+        }
+    }
+
+    cout << "$Error: incorrect user" << endl;
+    return false;
+}
+
 void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession){
     if(*activeSession){
         cout << "$Error: active session" << endl;
@@ -1335,5 +1581,41 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
         return;
     }
 
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
 
+    SuperBlock sp;
+    int start;
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        start = mountedPartition->par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    fread(&sp, sizeof(SuperBlock), 1, file);
+
+    Inode root;
+    fseek(file, sp.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start);
+    if(root.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: users.txt does not exist" << endl;
+        return;
+    }
+
+    string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
+    if(content.empty()){
+        return;
+    }
+
+    *activeSession = authenticate(usr, passw, currentUser, content);
+
+    if(*activeSession){
+        currentUser->mountedPartition = *mountedPartition;
+        cout << "WELCOME " << usr << "!!" << endl;
+    }
+
+    fclose(file);
 }

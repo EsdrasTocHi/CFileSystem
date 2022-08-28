@@ -86,6 +86,7 @@ typedef struct{
     int b_pointers[16];
 }PointerBlock;
 
+
 /*
  *
  * UTILIDADES
