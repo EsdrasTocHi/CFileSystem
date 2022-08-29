@@ -1,11 +1,14 @@
-#mkdisk -path->disco1.dk -s->5 -u->m
-#fdisk -path->disco1.dk -s->1 -u->m -t->E -name->extendida
-#fdisk -path->disco1.dk -s->1 -u->m -t->P -name->primaria
-#fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica1
-#fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica2
-#fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica3
+mkdisk -path->disco1.dk -s->5 -u->m
+fdisk -path->disco1.dk -s->1 -u->m -t->E -name->extendida
+fdisk -path->disco1.dk -s->1 -u->m -t->P -name->primaria
+fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica1
+fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica2
+fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica3
 mount -path->disco1.dk -name->primaria
-#mkfs -id->732disco1
+mkfs -id->732disco1
 #rep -name->mbr -id->732disco1 -path->mbr.jpeg
 #rep -name->bm_Inode -path->bminodes.txt -id->732disco1
+logout
 login -id->732disco1 -usr->root -pass->123
+login -id->732disco1 -usr->root -pass->123
+logout

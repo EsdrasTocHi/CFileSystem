@@ -21,6 +21,7 @@ void ExecuteExec(string path);
 void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions);
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta);
 void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession);
+void ExecuteLogout(Sesion *currentUser, bool *activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -831,6 +832,8 @@ void Read(string str){
         ReadChmod(command);
     }else if(cmd == "login"){
         ReadLogin(command);
+    }else if(cmd == "logout"){
+        ExecuteLogout(&currentUser, &activeUser);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

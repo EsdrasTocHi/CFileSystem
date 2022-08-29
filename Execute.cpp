@@ -1619,3 +1619,15 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
 
     fclose(file);
 }
+
+void ExecuteLogout(Sesion *currentUser, bool *activeSession){
+    if(!*activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    *activeSession = false;
+    Sesion s;
+    cout << "GOOD BYE " << currentUser->user.name << "!!" << endl;
+    currentUser = &s;
+}
