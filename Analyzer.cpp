@@ -22,6 +22,8 @@ void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions);
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta);
 void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession);
 void ExecuteLogout(Sesion *currentUser, bool *activeSession);
+void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession);
+void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, bool *activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -619,6 +621,8 @@ void ReadMkgrp(vector<string> params){
         cout << "$Error: NAME is a mandatory parameter" << endl;
         return;
     }
+
+    ExecuteMkGrp(nameGrp, &currentUser, &activeUser);
 }
 
 void ReadRmgrp(vector<string> params){
@@ -685,6 +689,8 @@ void ReadMkusr(vector<string> params){
         cout << "$Error: USR is a mandatory parameter" << endl;
         return;
     }
+
+    ExecuteMkusr(usr, passw, nameGrp, &currentUser, &activeUser);
 }
 
 void ReadRmusr(vector<string> params){
@@ -834,6 +840,8 @@ void Read(string str){
         ReadLogin(command);
     }else if(cmd == "logout"){
         ExecuteLogout(&currentUser, &activeUser);
+    }else if(cmd == "mkgrp"){
+        ReadMkgrp(command);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

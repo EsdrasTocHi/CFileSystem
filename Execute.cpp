@@ -1339,7 +1339,7 @@ vector<string> splitPath(string path){
     return res;
 }
 
-Inode searchInDirBlocks(int pointer, FILE *file, string name, int istart, int bstart){
+Inode searchInDirBlocks(int pointer, FILE *file, string name, int istart, int bstart, int *p){
     DirBlock dirBlock;
     Inode res;
     res.i_type = 'n';
@@ -1355,13 +1355,14 @@ Inode searchInDirBlocks(int pointer, FILE *file, string name, int istart, int bs
         if(dirBlock.b_content[i].b_name == name){
             fseek(file, istart+(dirBlock.b_content[i].b_inodo * sizeof(Inode)), SEEK_SET);
             fread(&res, sizeof(Inode), 1, file);
+            *p = dirBlock.b_content[i].b_inodo;
             return res;
         }
     }
     return res;
 }
 
-Inode searchFileInPointerBlocks(int dim, string name, FILE *file, int pointer, int istart, int bstart){
+Inode searchFileInPointerBlocks(int dim, string name, FILE *file, int pointer, int istart, int bstart, int *p){
     Inode res;
     res.i_type = 'n';
 
@@ -1375,14 +1376,14 @@ Inode searchFileInPointerBlocks(int dim, string name, FILE *file, int pointer, i
     fread(&pb, sizeof(PointerBlock), 1, file);
     if(dim == 1){
         for(int i = 0; i < 16; i++){
-            res = searchInDirBlocks(pb.b_pointers[i], file, name, istart, bstart);
+            res = searchInDirBlocks(pb.b_pointers[i], file, name, istart, bstart, p);
             if(res.i_type != 'n'){
                 return res;
             }
         }
     }else{
         for(int i = 0; i < 16; i++){
-            res = searchFileInPointerBlocks(dim-1, name, file, pb.b_pointers[i], istart, bstart);
+            res = searchFileInPointerBlocks(dim-1, name, file, pb.b_pointers[i], istart, bstart, p);
             if(res.i_type != 'n'){
                 return res;
             }
@@ -1430,7 +1431,7 @@ string readFileInPointerBlocks(int dim, FILE *file, int pointer, int istart, int
     return res;
 }
 
-Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int bstart){
+Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int bstart, int *p){
     int pointer;
     Inode res;
     res.i_type = 'n';
@@ -1439,9 +1440,9 @@ Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int b
         if(inode.i_type == '0'){
             for(int j = 0; j < 15; j++){
                 if(j < 12){
-                    res = searchInDirBlocks(inode.i_block[j], file, path.at(i), istart, bstart);
+                    res = searchInDirBlocks(inode.i_block[j], file, path.at(i), istart, bstart, p);
                 }else{
-                    res = searchFileInPointerBlocks(j-12, path.at(i), file, inode.i_block[j], istart, bstart);
+                    res = searchFileInPointerBlocks(j-12, path.at(i), file, inode.i_block[j], istart, bstart, p);
                 }
 
                 if(res.i_type != 'n'){
@@ -1598,7 +1599,9 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
     fseek(file, sp.s_inode_start, SEEK_SET);
     fread(&root, sizeof(Inode), 1, file);
 
-    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start);
+    int p = 0;
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &p);
+    cout << "hola mundo" << endl;
     if(root.i_type == 'n'){
         fclose(file);
         cout << "$Error: users.txt does not exist" << endl;
@@ -1607,6 +1610,7 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
 
     string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
     if(content.empty()){
+        fclose(file);
         return;
     }
 
@@ -1630,4 +1634,403 @@ void ExecuteLogout(Sesion *currentUser, bool *activeSession){
     Sesion s;
     cout << "GOOD BYE " << currentUser->user.name << "!!" << endl;
     currentUser = &s;
+}
+
+int countGroups(string c){
+    vector<string> content = getLines(c);
+    int counter = 0;
+    for(int i = 0; i < content.size(); i++){
+        if(!isUser(content.at(i))){
+            counter++;
+        }
+    }
+
+    return counter;
+}
+
+bool existGroup(string name, string c){
+    vector<string> content = getLines(c);
+    for(int i = 0; i < content.size(); i++){
+        if(!isUser(content.at(i))){
+            string nameGroup,  aux;
+            int counter = 0;
+            for(int j = 0; j < content.at(i).length(); j++){
+                if(content.at(i)[j] == ',' || j == content.at(i).length()-1){
+                    if(counter == 2){
+                            aux += content.at(i)[j];
+                            nameGroup = aux;
+                    }
+                    aux = "";
+                    counter++;
+                    continue;
+                }
+                aux += content.at(i)[j];
+            }
+
+            if(nameGroup == name && content.at(i)[0] != '0'){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+int countUsers(string c){
+    vector<string> content = getLines(c);
+    int counter = 0;
+    for(int i = 0; i < content.size(); i++){
+        if(isUser(content.at(i))){
+            counter++;
+        }
+    }
+
+    return counter;
+}
+
+bool existUser(string name, string c){
+    vector<string> content = getLines(c);
+    for(int i = 0; i < content.size(); i++){
+        if(isUser(content.at(i))){
+            string nameGroup,  aux;
+            int counter = 0;
+            for(int j = 0; j < content.at(i).length(); j++){
+                if(content.at(i)[j] == ','){
+                    if(counter == 3){
+                        nameGroup = aux;
+                    }
+                    aux = "";
+                    counter++;
+                    continue;
+                }
+                aux += content.at(i)[j];
+            }
+
+            if(nameGroup == name && content.at(i)[0] != '0'){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+string separateContent(string *content){
+    string res, aux;
+    for(int i = 0; i < content->length(); i++){
+        if(i<64){
+            res += (*content)[i];
+            continue;
+        }
+
+        aux += (*content)[i];
+    }
+
+    *content = aux;
+    return res;
+}
+
+int getFreeBlock(SuperBlock sp, FILE *file){
+    fseek(file, sp.s_bm_block_start, SEEK_SET);
+    char c;
+    int counter = 0;
+    for(int i = sp.s_bm_block_start; i < sp.s_inode_start; i++){
+        fread(&c, 1, 1, file);
+        if(c == '0'){
+            c = '1';
+            fseek(file, i, SEEK_SET);
+            fwrite(&c, 1, 1, file);
+            return counter;
+        }
+        counter++;
+    }
+
+    return -1;
+}
+
+//-1 = error, -2 = ya esta escrito
+int writeInContentBlock(string content, int pointer, FILE *file, SuperBlock sp, int *createdBlocks){
+    int p = pointer;
+    bool newBlock = false;
+    if(pointer == -1){
+        p = getFreeBlock(sp, file);
+        if(pointer == -1){
+            cout << "$Error: no blocks available" << endl;
+            return -1;
+        }
+        (*createdBlocks)++;
+        newBlock = true;
+    }
+
+    FileBlock fb;
+    strcpy(fb.b_content, content.c_str());
+
+    fseek(file, sp.s_block_start+(p * 64), SEEK_SET);
+    fwrite(&fb, 64, 1, file);
+
+    if(newBlock){
+        return p;
+    }
+    return -2;
+}
+
+int writeInPointerBlock(string *content, SuperBlock sp, FILE *file, int dim, int pointer, int *createdBlocks){
+    PointerBlock pb;
+    bool newPointer = false;
+    if(pointer == -1){
+        pointer = getFreeBlock(sp, file);
+        if(pointer == -1){
+            cout << "$Error: no blocks available" << endl;
+            return -1;
+        }
+
+        newPointer = true;
+        (*createdBlocks)++;
+        fseek(file, sp.s_block_start+(pointer*64), SEEK_SET);
+        fwrite(&pb, 64, 1, file);
+    }
+    fseek(file, sp.s_block_start+(pointer*64), SEEK_SET);
+    fread(&pb, 64, 1, file);
+
+    if(dim == 1){
+        for(int i = 0; i < 16; i++) {
+            if(*content == ""){
+                if(newPointer){
+                    return pointer;
+                }
+                return -2;
+            }
+            int r = writeInContentBlock(separateContent(content), pb.b_pointers[i], file, sp, createdBlocks);
+            if(r == -1){
+                return -1;
+            }else if(r == -2){
+                continue;
+            }
+
+            pb.b_pointers[i] = r;
+
+            fseek(file, sp.s_block_start+(pointer*64), SEEK_SET);
+            fwrite(&pb, sizeof(Inode), 1, file);
+        }
+        if(newPointer){
+            return pointer;
+        }
+        return -2;
+    }
+
+    for(int i = 0; i < 16; i++) {
+        if(*content == ""){
+            if(newPointer){
+                return pointer;
+            }
+            return -2;
+        }
+        int r = writeInPointerBlock(content, sp, file, dim-1, pb.b_pointers[i], createdBlocks);
+        if(r == -1){
+            return -1;
+        }else if(r == -2){
+            continue;
+        }
+
+        pb.b_pointers[i] = r;
+
+        fseek(file, sp.s_block_start+(pointer*64), SEEK_SET);
+        fwrite(&pb, sizeof(Inode), 1, file);
+    }
+    if(newPointer){
+        return pointer;
+    }
+    return -2;
+}
+
+bool writeInFile(SuperBlock sp, Inode f, string content, FILE *file, int pointerInode, int *createdBlocks){
+
+    int size = content.length();
+    for(int i = 0; i < 15; i++){
+        if(content == ""){
+            return true;
+        }
+        int response;
+
+        if(i < 12) {
+            response = writeInContentBlock(separateContent(&content), f.i_block[i], file, sp, createdBlocks);
+        }else{
+            response = writeInPointerBlock(&content, sp, file, i-12, f.i_block[i], createdBlocks);
+        }
+
+        if(response == -1){
+            return false;
+        }else if(response == -2){
+            continue;
+        }
+
+        f.i_block[i] = response;
+        strcpy(f.i_mtime, currentDateTime().c_str());
+
+        fseek(file, sp.s_inode_start+(pointerInode* sizeof(Inode)), SEEK_SET);
+        fwrite(&f, sizeof(Inode), 1, file);
+    }
+
+    return true;
+}
+
+void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession){
+    if(name.length() > 10){
+        cout << "$Error: the name is too long" << endl;
+        return;
+    }
+    if(!*activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    if(string(currentUser->user.name) != "root"){
+        cout << "$Error: you do not have permission to use this command" << endl;
+        return;
+    }
+
+    MountedPartition *mountedPartition;
+    mountedPartition = &(currentUser->mountedPartition);
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+
+    SuperBlock sp;
+    int start;
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        start = mountedPartition->par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    fread(&sp, sizeof(SuperBlock), 1, file);
+
+    Inode root;
+    fseek(file, sp.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+
+    int pointerOfFile;
+
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &pointerOfFile);
+    if(root.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: users.txt does not exist" << endl;
+        return;
+    }
+
+    string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
+
+    if(content.empty()){
+        fclose(file);
+        return;
+    }
+
+    if(existGroup(name, content)){
+        cout << "$Error: the group already exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    int id = countGroups(content)+1;
+    string newGoup = to_string(id)+",G,"+name+"\n";
+
+    content += newGoup;
+    int createdBlocks = 0, newSize = content.length();
+    if(writeInFile(sp, root, content, file, pointerOfFile, &createdBlocks)){
+        sp.s_free_blocks_counts-=createdBlocks;
+        fseek(file, start, SEEK_SET);
+        fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+        root.i_s = newSize;
+        strcpy(root.i_mtime, currentDateTime().c_str());
+        fseek(file, pointerOfFile, SEEK_SET);
+        fwrite(&root, sizeof(Inode), 1, file);
+    }
+
+    fclose(file);
+}
+
+void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, bool *activeSession){
+    if(name.length() > 10){
+        cout << "$Error: the user is too long" << endl;
+        return;
+    }
+    if(name.length() > 10){
+        cout << "$Error: the password is too long" << endl;
+        return;
+    }
+    if(!*activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    if(string(currentUser->user.name) != "root"){
+        cout << "$Error: you do not have permission to use this command" << endl;
+        return;
+    }
+
+    MountedPartition *mountedPartition;
+    mountedPartition = &(currentUser->mountedPartition);
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+
+    SuperBlock sp;
+    int start;
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        start = mountedPartition->par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    fread(&sp, sizeof(SuperBlock), 1, file);
+
+    Inode root;
+    fseek(file, sp.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+
+    int pointerOfFile;
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &pointerOfFile);
+    if(root.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: users.txt does not exist" << endl;
+        return;
+    }
+
+    string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
+
+    if(content.empty()){
+        fclose(file);
+        return;
+    }
+
+    if(existUser(name, content)){
+        cout << "$Error: the user already exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    if(!existGroup(group, content)){
+        cout << "$Error: the group does not exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    int id = countUsers(content)+1;
+    string newUser = to_string(id)+",U,"+group+","+name+","+pass+"\n";
+
+    content += newUser;
+    int newSize = content.length();
+    int createdBlocks = 0;
+    if(writeInFile(sp, root, content, file, pointerOfFile, &createdBlocks)){
+        sp.s_free_blocks_counts-=createdBlocks;
+        fseek(file, start, SEEK_SET);
+        fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+        root.i_s = newSize;
+        strcpy(root.i_mtime, currentDateTime().c_str());
+        fseek(file, pointerOfFile, SEEK_SET);
+        fwrite(&root, sizeof(Inode), 1, file);
+        cout << "USER CREATED SUCCESFULLY" << endl;
+    }
+
+    fclose(file);
 }
