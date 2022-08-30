@@ -24,6 +24,8 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
 void ExecuteLogout(Sesion *currentUser, bool *activeSession);
 void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, bool *activeSession);
+void ExecuteRmgrp(string name, Sesion *currentUser, bool *activeSession);
+void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -632,7 +634,7 @@ void ReadRmgrp(vector<string> params){
         vector<string> param = Split(params[i], '>');
         string name = ToLower(param[0]);
         string value = param[1];
-        if(name == "-grp-"){
+        if(name == "-name-"){
             nameGrp = ParameterName(value);
             if(nameGrp == ""){
                 return;
@@ -647,6 +649,8 @@ void ReadRmgrp(vector<string> params){
         cout << "$Error: NAME is a mandatory parameter" << endl;
         return;
     }
+
+    ExecuteRmgrp(nameGrp, &currentUser, &activeUser);
 }
 
 void ReadMkusr(vector<string> params){
@@ -715,6 +719,7 @@ void ReadRmusr(vector<string> params){
         cout << "$Error: USR is a mandatory parameter" << endl;
         return;
     }
+    ExecuteRmusr(nameUsr, &currentUser, &activeUser);
 }
 
 void ReadChmod(vector<string> params){
@@ -840,8 +845,8 @@ void Read(string str){
         ReadLogin(command);
     }else if(cmd == "logout"){
         ExecuteLogout(&currentUser, &activeUser);
-    }else if(cmd == "mkgrp"){
-        ReadMkgrp(command);
+    }else if(cmd == "exit"){
+        exit(EXIT_SUCCESS);
     }else{
         cout << cmd << " command not recognized" << endl;
     }

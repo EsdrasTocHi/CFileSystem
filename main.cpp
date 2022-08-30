@@ -14,6 +14,7 @@ int main() {
 
         if(ToLower(str) == "exit"){
             cicle = false;
+            exit(EXIT_SUCCESS);
             cout << "SEE YOU SOON! =D" << endl;
             continue;
         }

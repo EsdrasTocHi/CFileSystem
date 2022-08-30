@@ -1389,7 +1389,6 @@ Inode searchFileInPointerBlocks(int dim, string name, FILE *file, int pointer, i
             }
         }
     }
-
     return res;
 }
 
@@ -1427,7 +1426,6 @@ string readFileInPointerBlocks(int dim, FILE *file, int pointer, int istart, int
             res += readFileInPointerBlocks(dim-1,file, pb.b_pointers[i], istart, bstart);
         }
     }
-
     return res;
 }
 
@@ -1459,7 +1457,6 @@ Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int b
             return res;
         }
     }
-
     return res;
 }
 
@@ -1480,7 +1477,6 @@ string readFile(FILE *file, Inode inode, int istart, int bstart){
         cout << "$Error: yo can not read a directory" << endl;
         return res;
     }
-
     return res;
 }
 
@@ -1543,7 +1539,7 @@ bool authenticate(string usr, string passw, Sesion *currentUser, string content)
             if(usr == user){
                 if(pass == passw){
                     if(id == 0){
-                        cout << "$Error: user deleted" << endl;
+                        cout << "$Error: user does not exist" << endl;
                         return false;
                     }
                     strcpy(currentUser->user.group, group.c_str());
@@ -1601,7 +1597,7 @@ void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> 
 
     int p = 0;
     root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &p);
-    cout << "hola mundo" << endl;
+
     if(root.i_type == 'n'){
         fclose(file);
         cout << "$Error: users.txt does not exist" << endl;
@@ -1744,7 +1740,6 @@ int getFreeBlock(SuperBlock sp, FILE *file){
         }
         counter++;
     }
-
     return -1;
 }
 
@@ -1844,7 +1839,6 @@ int writeInPointerBlock(string *content, SuperBlock sp, FILE *file, int dim, int
 }
 
 bool writeInFile(SuperBlock sp, Inode f, string content, FILE *file, int pointerInode, int *createdBlocks){
-
     int size = content.length();
     for(int i = 0; i < 15; i++){
         if(content == ""){
@@ -1870,7 +1864,6 @@ bool writeInFile(SuperBlock sp, Inode f, string content, FILE *file, int pointer
         fseek(file, sp.s_inode_start+(pointerInode* sizeof(Inode)), SEEK_SET);
         fwrite(&f, sizeof(Inode), 1, file);
     }
-
     return true;
 }
 
@@ -1944,6 +1937,7 @@ void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession){
         strcpy(root.i_mtime, currentDateTime().c_str());
         fseek(file, pointerOfFile, SEEK_SET);
         fwrite(&root, sizeof(Inode), 1, file);
+        cout << "GROUP CREATED SUCCESFULLY" << endl;
     }
 
     fclose(file);
@@ -2030,6 +2024,237 @@ void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, b
         fseek(file, pointerOfFile, SEEK_SET);
         fwrite(&root, sizeof(Inode), 1, file);
         cout << "USER CREATED SUCCESFULLY" << endl;
+    }
+
+    fclose(file);
+}
+
+void ExecuteRmgrp(string name, Sesion *currentUser, bool *activeSession){
+    if(name == "root"){
+        cout << "$Error: you can not delete the root group" << endl;
+        return;
+    }
+    if(!*activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    if(string(currentUser->user.name) != "root"){
+        cout << "$Error: you do not have permission to use this command" << endl;
+        return;
+    }
+
+    MountedPartition *mountedPartition;
+    mountedPartition = &(currentUser->mountedPartition);
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+
+    SuperBlock sp;
+    int start;
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        start = mountedPartition->par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    fread(&sp, sizeof(SuperBlock), 1, file);
+
+    Inode root;
+    fseek(file, sp.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+
+    int pointerOfFile;
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &pointerOfFile);
+    if(root.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: users.txt does not exist" << endl;
+        return;
+    }
+
+    string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
+
+    if(content.empty()){
+        fclose(file);
+        return;
+    }
+
+    if(!existGroup(name, content)){
+        cout << "$Error: the group does not exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    vector<string> c = getLines(content);
+
+    for(int i = 0; i < c.size(); i++){
+        if(!isUser(c.at(i))){
+            int id, counter = 0;
+            string group, aux = "";
+            for(int j = 0; j < c.at(i).length(); j++){
+                if(c.at(i)[j] == ',' || j == c.at(i).length()-1){
+                    switch (counter) {
+                        case 0:
+                            id = stoi(aux);
+                            break;
+                        case 2:
+                            aux += c.at(i)[j];
+                            group = aux;
+                            break;
+                    }
+                    aux = "";
+                    counter++;
+                    continue;
+                }
+                aux += c.at(i)[j];
+            }
+
+            if(name == group){
+               if(id == 0){
+                   cout << "$Error: group does not exist" << endl;
+                   fclose(file);
+                   return;
+               }
+               c.at(i) = "0,G,"+name;
+               break;
+            }
+        }
+    }
+
+    string finalContent;
+    for(int i = 0; i < c.size(); i++){
+        finalContent += c.at(i)+"\n";
+    }
+
+    int newSize = finalContent.length();
+    int createdBlocks = 0;
+    if(writeInFile(sp, root, finalContent, file, pointerOfFile, &createdBlocks)){
+        sp.s_free_blocks_counts-=createdBlocks;
+        fseek(file, start, SEEK_SET);
+        fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+        root.i_s = newSize;
+        strcpy(root.i_mtime, currentDateTime().c_str());
+        fseek(file, pointerOfFile, SEEK_SET);
+        fwrite(&root, sizeof(Inode), 1, file);
+        cout << "GROUP DELETED SUCCESFULLY" << endl;
+    }
+
+    fclose(file);
+}
+
+void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession){
+    if(name == "root"){
+        cout << "$Error: you can not delete the root user" << endl;
+        return;
+    }
+    if(!*activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    if(string(currentUser->user.name) != "root"){
+        cout << "$Error: you do not have permission to use this command" << endl;
+        return;
+    }
+
+    MountedPartition *mountedPartition;
+    mountedPartition = &(currentUser->mountedPartition);
+    FILE *file = fopen(mountedPartition->path.c_str(), "rb+");
+
+    SuperBlock sp;
+    int start;
+    if(mountedPartition->isLogic){
+        start = mountedPartition->logicPar.part_start;
+    }else{
+        start = mountedPartition->par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    fread(&sp, sizeof(SuperBlock), 1, file);
+
+    Inode root;
+    fseek(file, sp.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+
+    int pointerOfFile;
+    root = searchFile(file, root, splitPath("users.txt"), sp.s_inode_start, sp.s_block_start, &pointerOfFile);
+    if(root.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: users.txt does not exist" << endl;
+        return;
+    }
+
+    string content = readFile(file, root, sp.s_inode_start, sp.s_block_start);
+
+    if(content.empty()){
+        fclose(file);
+        return;
+    }
+
+    if(!existUser(name, content)){
+        cout << "$Error: the user does not exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    vector<string> c = getLines(content);
+
+    for(int i = 0; i < c.size(); i++){
+        if(isUser(c.at(i))){
+            int id, counter = 0;
+            string group, user, pass, aux = "";
+            for(int j = 0; j < c.at(i).length(); j++){
+                if(c.at(i)[j] == ',' || j == c.at(i).length()-1){
+                    switch (counter) {
+                        case 0:
+                            id = stoi(aux);
+                            break;
+                        case 2:
+                            group = aux;
+                            break;
+                        case 3:
+                            user = aux;
+                            break;
+                        case 4:
+                            aux += c.at(i)[j];
+                            pass = aux;
+                            break;
+                    }
+                    aux = "";
+                    counter++;
+                    continue;
+                }
+                aux += c.at(i)[j];
+            }
+
+            if(name == user){
+                if(id == 0){
+                    cout << "$Error: user does not exist" << endl;
+                    fclose(file);
+                    return;
+                }
+                c.at(i) = "0,U,"+group+","+name+","+pass;
+            }
+        }
+    }
+
+    string finalContent;
+    for(int i = 0; i < c.size(); i++){
+        finalContent += c.at(i)+"\n";
+    }
+
+    int newSize = finalContent.length();
+    int createdBlocks = 0;
+    if(writeInFile(sp, root, finalContent, file, pointerOfFile, &createdBlocks)){
+        sp.s_free_blocks_counts-=createdBlocks;
+        fseek(file, start, SEEK_SET);
+        fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+        root.i_s = newSize;
+        strcpy(root.i_mtime, currentDateTime().c_str());
+        fseek(file, pointerOfFile, SEEK_SET);
+        fwrite(&root, sizeof(Inode), 1, file);
+        cout << "USER DELETED SUCCESFULLY" << endl;
     }
 
     fclose(file);
