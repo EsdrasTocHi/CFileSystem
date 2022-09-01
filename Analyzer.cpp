@@ -115,11 +115,11 @@ int ParameterSize(string str){
 
 char ParameterFit(string cmd){
     string fit = ToLower(cmd);
-    if(fit == "bf"){
+    if(fit == "bestfit"){
         return 'B';
-    }else if(fit == "ff"){
+    }else if(fit == "firstfit"){
         return 'F';
-    }else if(fit == "wf"){
+    }else if(fit == "worstfit"){
         return 'W';
     }
 

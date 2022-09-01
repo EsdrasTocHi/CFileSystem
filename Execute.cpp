@@ -1460,6 +1460,22 @@ Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int b
     return res;
 }
 
+void changeUGO(FILE *file, Inode inode, vector<string> path, int istart, int bstart, int ugo){
+    string auxPath = "";
+    Inode found;
+    int p = 0;
+    for(int i = 0; i < path.size(); i++){
+        auxPath += "/"+path.at(i);
+        found = searchFile(file, inode, splitPath(auxPath), istart, bstart, &p);
+
+        found.i_perm = ugo;
+        strcpy(found.i_mtime, currentDateTime().c_str());
+
+        fseek(file, istart + (p * sizeof(Inode)), SEEK_SET);
+        fwrite(&found, sizeof(Inode), 1, file);
+    }
+}
+
 string readFile(FILE *file, Inode inode, int istart, int bstart){
     int pointer;
     string res = "";
@@ -2258,4 +2274,60 @@ void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession){
     }
 
     fclose(file);
+}
+
+void ExecuteChmod(int ugo, string path, bool r, Sesion currentUser, bool activeSession){
+    if(!activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    if(currentUser.user.name != "root"){
+        cout << "$Error: you do not have permission to use this command" << endl;
+        return;
+    }
+
+    if(ugo < 100 || ugo >777){
+        cout << "$Error: the value for ugo is not allowed" << endl;
+        return;
+    }
+
+    int start;
+    if(currentUser.mountedPartition.isLogic){
+        start = currentUser.mountedPartition.logicPar.part_start;
+    }else{
+        start = currentUser.mountedPartition.par.part_start;
+    }
+
+    SuperBlock sb;
+    FILE *file = fopen(currentUser.mountedPartition.path.c_str(), "rb+");
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    Inode root, aux;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    int pointerOfFile = 0;
+    aux = searchFile(file, root, splitPath(path), sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    if(r){
+        if(aux.i_type == 'n'){
+            fclose(file);
+            cout << "$Error: path does not exist" << endl;
+            return;
+        }
+
+        changeUGO(file, root, splitPath(path), sb.s_inode_start, sb.s_block_start, ugo);
+        cout << "SUCCESSFULLY MODIFIED PERMISSIONS"<< endl;
+        fclose(file);
+        return;
+    }
+
+    fseek(file, sb.s_inode_start+(sizeof(Inode)*pointerOfFile), SEEK_SET);
+    aux.i_perm = ugo;
+    strcpy(aux.i_mtime, currentDateTime().c_str());
+
+    fwrite(&aux, sizeof(Inode), 1, file);
+    cout << "SUCCESSFULLY MODIFIED PERMISSIONS"<< endl;
+    fclose(file);
+    return;
 }
