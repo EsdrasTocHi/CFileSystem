@@ -7,13 +7,14 @@ fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica2
 fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica3
 mount -path->disco1.dk -name->primaria
 mkfs -id->732disco1
+rep -name->inode -id->732disco1 -path->inodes.jpeg
 #rep -name->mbr -id->732disco1 -path->mbr.jpeg
 #rep -name->bm_Inode -path->bminodes.txt -id->732disco1
 login -id->732disco1 -usr->root -pass->123
-mkgrp -name->grupo1
+#mkgrp -name->grupo1
 #mkusr -usr->Esdras -pass->456 -grp->root
 #rmusr -usr->Esdras
 #rmgrp -name->grupo1
 #mkusr -usr->Esdras -pass->456 -grp->grupo1
-logout
+#logout
 #login -id->732disco1 -usr->Esdras -pass->456

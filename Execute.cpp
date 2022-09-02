@@ -1136,6 +1136,7 @@ void ExecuteExec(string path){
 void ReportMbr(string path, string imagePath);
 void ReportBMInode(MountedPartition *mountedPartition, string path);
 void ReportBMBlocks(MountedPartition *mountedPartition, string path);
+void ReportInodes(MountedPartition partition, string path);
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta){
     MountedPartition *mountedPartition;
     int i = 0;
@@ -1157,6 +1158,8 @@ void ExecuteReport(string id, string name, string path, vector<MountedPartition>
         ReportBMInode(mountedPartition, path);
     }else if(ToLower(name) == "bm_block"){
         ReportBMBlocks(mountedPartition, path);
+    }else if(ToLower(name) == "inode"){
+        ReportInodes(*mountedPartition, path);
     }
 }
 

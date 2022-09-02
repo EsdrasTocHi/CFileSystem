@@ -296,3 +296,105 @@ void ReportBMBlocks(MountedPartition *mountedPartition, string path){
 
     cout << "REPORT COMPLETED" << endl;
 }
+
+void reportInode(Inode inode, string *nodes, string *edges, int lastInode, int actualInode){
+    cout << inode.i_ctime << endl;
+    *nodes += "<tr>\n";
+    *nodes +="                            <td>i_uid</td>\n";
+    *nodes += "                            <td>"+ to_string(inode.i_uid)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_gid</td>\n";
+    *nodes += "                            <td>"+ to_string(inode.i_gid)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_s</td>\n";
+    *nodes += "                            <td>"+to_string(inode.i_s)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_atime</td>\n";
+    *nodes += "                            <td>"+string(inode.i_atime)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_ctime</td>\n";
+    *nodes += "                            <td>"+string(inode.i_ctime)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_mtime</td>\n";
+    *nodes += "                            <td>"+string(inode.i_mtime)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    for(int i = 0; i < 15; i++) {
+        *nodes += "                        <tr>\n";
+        *nodes += "                            <td>i_block"+ to_string(i+1)+"</td>\n";
+        *nodes += "                            <td>"+ to_string(inode.i_block[i])+"</td>\n";
+        *nodes += "                        </tr>\n";
+    }
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_type</td>\n";
+    *nodes += "                            <td>";
+    *nodes += inode.i_type;
+    *nodes += "</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>i_perm</td>\n";
+    *nodes += "                            <td>"+ to_string(inode.i_perm)+"</td>\n";
+    *nodes += "                        </tr>\n";
+
+    if(lastInode != -1) {
+        *edges += "i" + to_string(lastInode) + "->i" + to_string(actualInode)+";\n";
+    }
+}
+
+void ReportInodes(MountedPartition partition, string path){
+    Inode aux;
+    int lastInode = -1;
+    string nodes, edges;
+
+    int start;
+    if(partition.isLogic){
+        start = partition.logicPar.part_start;
+    }else{
+        start = partition.par.part_start;
+    }
+
+    FILE *file = fopen(partition.path.c_str(), "rb+");
+    SuperBlock sb;
+
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    if(sb.s_filesystem_type == 0){
+        cout << "$Error: the partition is not formatted" << endl;
+        return;
+    }
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    for(int i = 0; i < sb.s_inodes_count; i++){
+        fread(&aux, sizeof(Inode), 1, file);
+        if(aux.i_perm == 0){
+            continue;
+        }
+        nodes += "i"+ to_string(i)+"[label = <\n";
+        nodes += "        <table>\n";
+        nodes += "            <tr>\n";
+        nodes += "                <td>Inode "+ to_string(i)+"</td>\n";
+        nodes += "            </tr>\n";
+        nodes += "            <tr>\n";
+        nodes += "                <td>";
+        nodes += "                   <table>";
+        reportInode(aux, &nodes, &edges, lastInode, i);
+        nodes += "</table>\n";
+        nodes += "                </td>\n";
+        nodes += "            </tr>\n";
+        nodes += "        </table>\n";
+        nodes += "    >];\n\n";
+        lastInode = i;
+    }
+
+    fclose(file);
+
+    string graphContent = "digraph G {\n";
+    graphContent += "    node [shape=plaintext]\n";
+    graphContent +=        "    rankdir=LR;\n"+nodes+edges+"}";
+
+    saveImageGV(path, graphContent);
+}
