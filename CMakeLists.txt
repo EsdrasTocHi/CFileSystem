@@ -3,4 +3,4 @@ project(MIA_Proyecto1_201807373)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(MIA_Proyecto1_201807373 main.cpp Structures.h Execute.cpp Analyzer.cpp Report.cpp)
+add_executable(MIA_Proyecto1_201807373 main.cpp Structures.h Execute.cpp Analyzer.cpp Report.cpp ReportInode.cpp)

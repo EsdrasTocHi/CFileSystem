@@ -26,6 +26,7 @@ void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, bool *activeSession);
 void ExecuteRmgrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession);
+void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -113,6 +114,24 @@ int ParameterSize(string str){
     return 0;
 }
 
+int ParameterSizeWithZero(string str){
+    int size;
+    try {
+        size = stoi(str);
+    }catch (...) {
+        cout << "$Error: Size parameter must be numeric"<<endl;
+        return 0;
+    }
+
+    if(size < 0){
+        cout<< "$Error: The size value must be positive"<<endl;
+    }else{
+        return size;
+    }
+
+    return 0;
+}
+
 char ParameterFit(string cmd){
     string fit = ToLower(cmd);
     if(fit == "bestfit"){
@@ -146,6 +165,15 @@ string ParameterPath(string cmd){
     }
 
     cout << "$Error: PATH cannot be empty" << endl;
+    return "";
+}
+
+string ParameterCont(string cmd){
+    if(cmd != ""){
+        return cmd;
+    }
+
+    cout << "$Error: CONT cannot be empty" << endl;
     return "";
 }
 
@@ -807,6 +835,49 @@ void ReadReport(vector<string> params){
     ExecuteReport(id, reportName, path, &mountedPartitions, ruta);
 }
 
+void ReadMkfile(vector<string> params){
+    string path, cont;
+    int s = -1;
+    bool r = false;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        if(name == "-r"){
+            r = true;
+            continue;
+        }
+        string value = param[1];
+
+        if(name == "-s-"){
+            s = ParameterSizeWithZero(value);
+            if(s == -1){
+                return;
+            }
+        }else if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else if(name == "-cont-"){
+            cont = ParameterCont(value);
+            if(path == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecMkfile(path, r, s, cont, currentUser, activeUser);
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');
@@ -845,6 +916,8 @@ void Read(string str){
         ReadLogin(command);
     }else if(cmd == "logout"){
         ExecuteLogout(&currentUser, &activeUser);
+    }else if(cmd == "mkfile"){
+        ReadMkfile(command);
     }else if(cmd == "exit"){
         exit(EXIT_SUCCESS);
     }else{

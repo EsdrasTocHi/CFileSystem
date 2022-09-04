@@ -46,7 +46,8 @@ bool saveImageGV(string file_path, string content){
     system(("dot -T"+ getExtension(file_path)+" temp.dot -o "+ file_path).c_str());
 }
 
-
+void reportInodeTree(Inode inode, string link, int pointer, string *nodes, string *edges, int istart, int bstart,
+                     FILE *file);
 string ReportLogicPartitionMbr(Ebr partition){
     string content = "<tr>\n";
     content += "            <td>Particion logica</td>\n";
@@ -298,7 +299,6 @@ void ReportBMBlocks(MountedPartition *mountedPartition, string path){
 }
 
 void reportInode(Inode inode, string *nodes, string *edges, int lastInode, int actualInode){
-    cout << inode.i_ctime << endl;
     *nodes += "<tr>\n";
     *nodes +="                            <td>i_uid</td>\n";
     *nodes += "                            <td>"+ to_string(inode.i_uid)+"</td>\n";
@@ -342,6 +342,107 @@ void reportInode(Inode inode, string *nodes, string *edges, int lastInode, int a
 
     if(lastInode != -1) {
         *edges += "i" + to_string(lastInode) + "->i" + to_string(actualInode)+";\n";
+    }
+}
+
+void reportFileBlock(FileBlock fb, string link, int pointer, string *nodes, string *edges){
+    string c = "";
+    if(string(fb.b_content).length() > 64) {
+        for (int i = 0; i < 64; i++) {
+            c += fb.b_content[i];
+        }
+    }else{
+        c = string(fb.b_content);
+    }
+    *nodes += "b"+ to_string(pointer)+"[label=<\n";
+    *nodes += "        <table>\n";
+    *nodes += "            <tr>\n";
+    *nodes += "                <td>\n";
+    *nodes += "                    <table>\n";
+    *nodes += "                        <tr>\n";
+    *nodes += "                            <td>FileBlock</td>\n";
+    *nodes += "                            <td>"+ to_string(pointer)+"</td>\n";
+    *nodes += "                        </tr>\n";
+    *nodes += "                    </table>\n";
+    *nodes += "                </td>\n";
+    *nodes += "            </tr>\n";
+    *nodes += "            <tr>\n";
+    *nodes += "                <td>"+c+"</td>\n";
+    *nodes += "            </tr>\n";
+    *nodes += "        </table>\n";
+    *nodes += "    >];\n";
+
+    *edges += link + "->" + "b"+ to_string(pointer)+";\n";
+}
+
+void reportDirBlock(DirBlock db,string link, int pointer, string *nodes, string *edges, int istart, int bstart,
+                    FILE *file){
+    *nodes+="b"+ to_string(pointer)+"[label=\"DirBlock "+ to_string(pointer);
+    for(int i = 1; i < 5; i++){
+        *nodes += "|{"+string(db.b_content[i-1].b_name)+"|<b"+ to_string(i)+">"+ to_string(db.b_content[i-1].b_inodo)+"}";
+    }
+    *nodes += "\"];\n";
+
+    *edges += link+"->b"+ to_string(pointer)+";\n";
+    for(int i = 0; i < 4; i++){
+        if(string(db.b_content[i].b_name) != "." && string(db.b_content[i].b_name) != "..") {
+            if(db.b_content[i].b_inodo == -2){
+                continue;
+            }
+            if (db.b_content[i].b_inodo != -1) {
+                Inode aux;
+                fseek(file, istart + (sizeof(Inode) * db.b_content[i].b_inodo), SEEK_SET);
+                fread(&aux, sizeof(Inode), 1, file);
+
+                string link = "b" + to_string(pointer) + ":<b" + to_string(i + 1) + ">";
+                reportInodeTree(aux, link, db.b_content[i].b_inodo, nodes, edges, istart, bstart, file);
+            }
+        }
+    }
+}
+
+void reportPointerBlock(PointerBlock pb, string link, int pointer, string *nodes, string *edges, int istart, int bstart,
+                        FILE *file, int dim, bool isFileBlock){
+    *nodes += "b"+ to_string(pointer)+"[label=\"PointerBlock "+ to_string(pointer);
+    for(int i = 0; i < 16; i++){
+        *nodes += "|{pointer "+ to_string(i+1)+"|<b"+ to_string(i+1)+">"+ to_string(pb.b_pointers[i])+"}";
+    }
+    *nodes += "\"];\n";
+
+    *edges += link + "->b"+ to_string(pointer)+";\n";
+
+    if(dim == 1) {
+        if (isFileBlock) {
+            for (int i = 0; i < 16; i++) {
+                if (pb.b_pointers[i] != -1) {
+                    FileBlock fileBlock;
+                    fseek(file, bstart + (64 * pb.b_pointers[i]), SEEK_SET);
+                    fread(&fileBlock, sizeof(FileBlock), 1, file);
+                    string link = "b" + to_string(pointer) + ":b" + to_string(i + 1);
+                    reportFileBlock(fileBlock, link, pb.b_pointers[i], nodes, edges);
+                }
+            }
+        } else {
+            DirBlock fileBlock;
+            for (int i = 0; i < 16; i++) {
+                if (pb.b_pointers[i] != -1) {
+                    fseek(file, bstart + (64 * pb.b_pointers[i]), SEEK_SET);
+                    fread(&fileBlock, sizeof(DirBlock), 1, file);
+                    string link = "b" + to_string(pointer) + ":b" + to_string(i + 1);
+                    reportDirBlock(fileBlock, link, pb.b_pointers[i], nodes, edges, istart, bstart, file);
+                }
+            }
+        }
+    }else{
+        PointerBlock fileBlock;
+        for (int i = 0; i < 16; i++) {
+            if (pb.b_pointers[i] != -1) {
+                fseek(file, bstart + (64 * pb.b_pointers[i]), SEEK_SET);
+                fread(&fileBlock, sizeof(PointerBlock), 1, file);
+                string link = "b" + to_string(pointer) + ":b" + to_string(i + 1);
+                reportPointerBlock(fileBlock, link, pb.b_pointers[i], nodes, edges, istart, bstart, file, dim-1, isFileBlock);
+            }
+        }
     }
 }
 
@@ -397,4 +498,34 @@ void ReportInodes(MountedPartition partition, string path){
     graphContent +=        "    rankdir=LR;\n"+nodes+edges+"}";
 
     saveImageGV(path, graphContent);
+}
+
+void ReportTree(MountedPartition partition, string path){
+    FILE *file = fopen(partition.path.c_str(), "rb+");
+    int start;
+    if(partition.isLogic){
+        start = partition.logicPar.part_start;
+    }else{
+        start = partition.par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    SuperBlock sb;
+    fread(&sb, sizeof(SuperBlock), 1, file);
+    if(sb.s_filesystem_type == 0){
+        fclose(file);
+        cout << "$Error: the partition is not formatted"<<endl;
+        return;
+    }
+    Inode root;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    string nodes, edges;
+
+    reportInodeTree(root, "", 0, &nodes, &edges, sb.s_inode_start, sb.s_block_start, file);
+
+    string content = "digraph G {node[shape = record];rankdir = LR;\n"+nodes+edges+"}";
+
+    fclose(file);
+    saveImageGV(path, content);
 }
