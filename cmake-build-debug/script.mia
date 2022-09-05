@@ -10,8 +10,10 @@ mkfs -id->732disco1
 login -id->732disco1 -usr->root -pass->123
 mkfile -path->/hola.txt -s->80
 rep -name->tree -id->732disco1 -path->tree2.jpeg
-mkfile -path->/lala/lala/lala/hola2.txt -s->10 -r
+mkdir -path->/lala/lala/lala -p
+mkfile -path->/lala/lala/lala/hola2.txt -s->10
 mkfile -path->/lala/hola2.txt -s->10 -r
+cat -file1->/hola.txt -file2->/lala/lala/lala/hola2.txt -file3->/lala/hola2.txt -file4->/users.txt
 #mkgrp -name->grupo1
 #mkusr -usr->Esdras -pass->456 -grp->root
 #mkusr -usr->Esdras1 -pass->456 -grp->root

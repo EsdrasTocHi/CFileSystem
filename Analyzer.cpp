@@ -9,6 +9,7 @@ using namespace std;
 #include "string.h"
 #include "fstream"
 #include "Structures.h"
+#include "regex"
 
 void ExecuteMkdisk(int size, string unit, char fit, string path);
 void ExecuteRmdisk(string path);
@@ -27,6 +28,8 @@ void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, b
 void ExecuteRmgrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession);
 void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession);
+void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession);
+void ExecuteCat(vector<string> files, Sesion currentUser, bool activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -878,6 +881,66 @@ void ReadMkfile(vector<string> params){
     ExecMkfile(path, r, s, cont, currentUser, activeUser);
 }
 
+void ReadMkdir(vector<string> params){
+    string path;
+    bool r = false;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        if(name == "-p"){
+            r = true;
+            continue;
+        }
+        string value = param[1];
+
+        if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteMkdir(path, r, currentUser, activeUser);
+}
+
+void ReadCat(vector<string> params){
+    vector<string> path;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+
+        if(regex_match(name.c_str(), regex("(-file)([0-9]+)(-)"))){
+            string p = ParameterPath(value);
+            if(p == ""){
+                return;
+            }
+            path.push_back(p);
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path.size() == 0){
+        cout << "$Error: FILEn is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteCat(path, currentUser, activeUser);
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');
@@ -918,6 +981,10 @@ void Read(string str){
         ExecuteLogout(&currentUser, &activeUser);
     }else if(cmd == "mkfile"){
         ReadMkfile(command);
+    }else if(cmd == "mkdir"){
+        ReadMkdir(command);
+    }else if(cmd == "cat"){
+        ReadCat(command);
     }else if(cmd == "exit"){
         exit(EXIT_SUCCESS);
     }else{

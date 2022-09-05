@@ -1329,7 +1329,6 @@ vector<string> splitPath(string path){
             if(i == 0){
                 continue;
             }
-            cout << aux<<endl;
             res.push_back(aux);
             aux = "";
             continue;
@@ -1338,7 +1337,6 @@ vector<string> splitPath(string path){
         aux += path[i];
 
         if(i == path.length()-1){
-            cout << aux<<endl;
             res.push_back(aux);
         }
     }
@@ -2645,7 +2643,6 @@ int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user
     DirBlock dbf;
     fread(&dbf, sizeof(DirBlock), 1, file);
     int fatherPointer = dbf.b_content[0].b_inodo;
-    cout << "father pointer: "<<fatherPointer<<endl;
 
     for(int i = 0; i < 15; i++){
         if(i < 12){
@@ -2809,7 +2806,7 @@ bool createMultipleDirectories(vector<string> path, Inode father, FILE *file, In
         response = searchFile(file, root, auxPath, istart, bstart, p);
         if(response.i_type == 'n'){
             if (getPermission(father, userId, groupId, father.i_perm, 0, 1, 0)) {
-                cout << createDirectory(file, &father, istart, bstart, currentUser.user, &currentUser, path.at(i), 0, sp, createdBlocks, createdInodes, p)<<endl;
+                createDirectory(file, &father, istart, bstart, currentUser.user, &currentUser, path.at(i), 0, sp, createdBlocks, createdInodes, p);
                 fseek(file, sp.s_inode_start, SEEK_SET);
                 fread(&root, sizeof(Inode), 1, file);
                 father = searchFile(file, root, auxPath, istart, bstart, p);
@@ -2872,7 +2869,6 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
 
     for(int i = 0; i < paux.size(); i++){
         if(i < paux.size()-1){
-            cout <<"--"<< paux.at(i) << endl;
             p.push_back(paux.at(i));
         }
     }
@@ -2920,11 +2916,138 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
 
             fseek(file, start, SEEK_SET);
             fwrite(&sb, sizeof(SuperBlock), 1, file);
+            cout << "FILE CREATED SUCCESFULLY"<< endl;
+        }else{
+            cout << "$Error: you dont have permission to write" << endl;
+        }
+    }
+
+    fclose(file);
+}
+
+void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession){
+    if(!activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    int start;
+    if(currentUser.mountedPartition.isLogic){
+        start = currentUser.mountedPartition.logicPar.part_start;
+    }else{
+        start = currentUser.mountedPartition.par.part_start;
+    }
+
+    SuperBlock sb;
+    FILE *file = fopen(currentUser.mountedPartition.path.c_str(), "rb+");
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    Inode root, aux;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    int pointerOfFile = 0;
+    aux = searchFile(file, root, splitPath("users.txt"),sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    string c = readFile(file, aux, sb.s_inode_start, sb.s_block_start);
+    vector<string> p, paux = splitPath(path);
+
+    for(int i = 0; i < paux.size(); i++){
+        if(i < paux.size()-1){
+            p.push_back(paux.at(i));
+        }
+    }
+    if(p.size() == 0){
+        aux = root;
+    }else {
+        aux = searchFile(file, root, p, sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    }
+
+    int createdBlocks = 0, createdInodes = 0;
+    if(r){
+        if(aux.i_type == 'n'){
+            if(!createMultipleDirectories(p, root, file, root, sb.s_inode_start, sb.s_block_start, currentUser.user.id,
+                                          getGroupId(currentUser.user.group, c), currentUser, sb, &createdBlocks, &createdInodes, &pointerOfFile)){
+                fclose(file);
+                return;
+            }
+            fseek(file, sb.s_inode_start, SEEK_SET);
+            fread(&root, sizeof(Inode), 1, file);
+            aux = searchFile(file, root, p, sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+        }
+    }
+
+    if(aux.i_type == 'n'){
+        cout << "$Error: The directory does not exist" << endl;
+    }else{
+        if(getPermission(aux, currentUser.user.id, getGroupId(currentUser.user.group, c),
+                         aux.i_perm, 0, 1 ,0)){
+            if(createDirectory(file, &aux, sb.s_inode_start, sb.s_block_start, currentUser.user, &currentUser,
+                               paux.at(paux.size()-1), 0, sb, &createdBlocks, &createdInodes, &pointerOfFile) == -1){
+                fclose(file);
+                return;
+            }
+            fseek(file, sb.s_inode_start, SEEK_SET);
+            fread(&root, sizeof(Inode), 1, file);
+
+            sb.s_free_blocks_counts -= createdBlocks;
+            sb.s_free_inodes_count -= createdInodes;
+
+            fseek(file, start, SEEK_SET);
+            fwrite(&sb, sizeof(SuperBlock), 1, file);
             cout << "DIRECTORY CREATED SUCCESFULLY"<< endl;
         }else{
             cout << "$Error: you dont have permission to write" << endl;
         }
     }
 
+    fclose(file);
+}
+
+void ExecuteCat(vector<string> files, Sesion currentUser, bool activeSession){
+    if(!activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    int start;
+    if(currentUser.mountedPartition.isLogic){
+        start = currentUser.mountedPartition.logicPar.part_start;
+    }else{
+        start = currentUser.mountedPartition.par.part_start;
+    }
+
+    SuperBlock sb;
+    FILE *file = fopen(currentUser.mountedPartition.path.c_str(), "rb+");
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    Inode root, aux;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    int pointerOfFile = 0;
+    aux = searchFile(file, root, splitPath("users.txt"),sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    string c = readFile(file, aux, sb.s_inode_start, sb.s_block_start);
+
+    string finalContent;
+    for(int i = 0; i < files.size(); i++){
+        aux = searchFile(file, root, splitPath(files.at(i)), sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+        if(aux.i_type == 'n'){
+            cout << "$Error: file does not exist" << endl;
+            fclose(file);
+            return;
+        }
+
+        if(getPermission(aux, currentUser.user.id, getGroupId(currentUser.user.group, c),
+                         aux.i_perm, 1, 0,0)){
+            finalContent += readFile(file, aux, sb.s_inode_start, sb.s_block_start) + "\n";
+        }else{
+            cout << "$Error: You do not have permission to read " << files.at(i) << endl;
+            fclose(file);
+            return;
+        }
+    }
+    cout << "=======================================================================" << endl;
+    cout << finalContent << endl;
+    cout << "=======================================================================" << endl;
     fclose(file);
 }
