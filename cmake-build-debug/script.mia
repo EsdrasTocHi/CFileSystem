@@ -8,14 +8,134 @@ fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica3
 mount -path->disco1.dk -name->primaria
 mkfs -id->732disco1
 login -id->732disco1 -usr->root -pass->123
-mkfile -path->/hola.txt -s->80
-rep -name->tree -id->732disco1 -path->tree2.jpeg
-mkdir -path->/lala/lala/lala -p
-mkfile -path->/lala/lala/lala/hola2.txt -s->10
-mkfile -path->/lala/hola2.txt -s->10 -r
-cat -file1->/hola.txt -file2->/lala/lala/lala/hola2.txt -file3->/lala/hola2.txt -file4->/users.txt
+mkfile -path->/hola1.txt -s->80
+mkfile -path->/hola2.txt -s->80
+mkfile -path->/hola3.txt -s->80
+mkfile -path->/hola4.txt -s->80
+mkfile -path->/hola5.txt -s->80
+mkfile -path->/hola6.txt -s->80
+mkfile -path->/hola7.txt -s->80
+mkfile -path->/hola8.txt -s->80
+mkfile -path->/hola9.txt -s->80
+mkfile -path->/hola10.txt -s->80
+mkfile -path->/hola11.txt -s->80
+mkfile -path->/hola12.txt -s->80
+mkfile -path->/hola13.txt -s->80
+mkfile -path->/hola14.txt -s->80
+mkfile -path->/hola15.txt -s->80
+mkfile -path->/hola16.txt -s->80
+mkfile -path->/hola17.txt -s->80
+mkfile -path->/hola18.txt -s->80
+mkfile -path->/hola19.txt -s->80
+mkfile -path->/hola20.txt -s->80
+mkfile -path->/hola21.txt -s->80
+mkfile -path->/hola22.txt -s->80
+mkfile -path->/hola23.txt -s->80
+mkfile -path->/hola24.txt -s->80
+mkfile -path->/hola25.txt -s->80
+mkfile -path->/hola26.txt -s->80
+mkfile -path->/hola27.txt -s->80
+mkfile -path->/hola28.txt -s->80
+mkfile -path->/hola29.txt -s->80
+mkfile -path->/hola30.txt -s->80
+mkfile -path->/hola31.txt -s->80
+mkfile -path->/hola32.txt -s->80
+mkfile -path->/hola33.txt -s->80
+mkfile -path->/hola34.txt -s->80
+mkfile -path->/hola35.txt -s->80
+mkfile -path->/hola36.txt -s->80
+mkfile -path->/hola37.txt -s->80
+mkfile -path->/hola38.txt -s->80
+mkfile -path->/hola39.txt -s->80
+mkfile -path->/hola40.txt -s->80
+mkfile -path->/hola41.txt -s->80
+mkfile -path->/hola42.txt -s->80
+mkfile -path->/hola43.txt -s->80
+mkfile -path->/hola44.txt -s->80
+mkfile -path->/hola45.txt -s->80
+mkfile -path->/hola46.txt -s->80
+mkfile -path->/hola47.txt -s->80
+mkfile -path->/hola48.txt -s->80
+mkfile -path->/hola49.txt -s->80
+mkfile -path->/hola50.txt -s->80
+mkfile -path->/hola51.txt -s->80
+mkfile -path->/hola52.txt -s->80
+mkfile -path->/hola53.txt -s->80
+mkfile -path->/hola53.txt -s->80
+mkfile -path->/hola54.txt -s->80
+mkfile -path->/hola55.txt -s->80
+mkfile -path->/hola56.txt -s->80
+mkfile -path->/hola57.txt -s->80
+mkfile -path->/hola58.txt -s->80
+mkfile -path->/hola59.txt -s->80
+mkfile -path->/hola60.txt -s->80
+mkfile -path->/hola61.txt -s->80
+mkfile -path->/hola62.txt -s->80
+mkfile -path->/hola63.txt -s->80
+mkfile -path->/hola64.txt -s->80
+mkfile -path->/hola65.txt -s->80
+mkfile -path->/hola66.txt -s->80
+mkfile -path->/hola67.txt -s->80
+mkfile -path->/hola68.txt -s->80
+mkfile -path->/hola69.txt -s->80
+mkfile -path->/hola70.txt -s->80
+mkfile -path->/hola71.txt -s->80
+mkfile -path->/hola72.txt -s->80
+mkfile -path->/hola73.txt -s->80
+mkfile -path->/hola74.txt -s->80
+mkfile -path->/hola75.txt -s->80
+mkfile -path->/hola76.txt -s->80
+mkfile -path->/hola77.txt -s->80
+mkfile -path->/hola78.txt -s->80
+mkfile -path->/hola79.txt -s->80
+mkfile -path->/hola80.txt -s->80
+mkfile -path->/hola81.txt -s->80
+mkfile -path->/hola82.txt -s->80
+mkfile -path->/hola83.txt -s->80
+mkfile -path->/hola84.txt -s->80
+mkfile -path->/hola85.txt -s->80
+mkfile -path->/hola86.txt -s->80
+mkfile -path->/hola87.txt -s->80
+mkfile -path->/hola88.txt -s->80
+mkfile -path->/hola89.txt -s->80
+mkfile -path->/hola90.txt -s->80
+mkfile -path->/hola91.txt -s->80
+mkfile -path->/hola92.txt -s->80
+mkfile -path->/hola93.txt -s->80
+mkfile -path->/hola94.txt -s->80
+mkfile -path->/hola95.txt -s->80
+mkfile -path->/hola96.txt -s->80
+mkfile -path->/hola97.txt -s->80
+mkfile -path->/hola98.txt -s->80
+mkfile -path->/hola99.txt -s->80
+mkfile -path->/hola100.txt -s->80
+mkfile -path->/hola101.txt -s->80
+mkfile -path->/hola102.txt -s->80
+mkfile -path->/hola103.txt -s->80
+mkfile -path->/hola104.txt -s->80
+mkfile -path->/hola105.txt -s->80
+mkfile -path->/hola106.txt -s->80
+mkfile -path->/hola107.txt -s->80
+mkfile -path->/hola108.txt -s->80
+mkfile -path->/hola109.txt -s->80
+mkfile -path->/hola110.txt -s->80
+cat -file1->/hola110.txt
+#mkfile -path->/hola111.txt -s->80
+#mkfile -path->/hola112.txt -s->80
+#mkfile -path->/hola113.txt -s->80
+#mkfile -path->/hola114.txt -s->80
+#mkfile -path->/hola115.txt -s->80
+#mkfile -path->/hola116.txt -s->80
+#mkfile -path->/hola117.txt -s->80
+#mkfile -path->/hola118.txt -s->80
+#rep -name->tree -id->732disco1 -path->tree2.svg
+#mkdir -path->/lala/lala/lala -p
+#mkfile -path->/lala/lala/lala/hola2.txt -s->10
+#mkfile -path->/lala/hola2.txt -s->10 -r
+#cat -file1->/hola.txt -file2->/lala/lala/lala/hola2.txt -file3->/lala/hola2.txt -file4->/users.txt
 #mkgrp -name->grupo1
 #mkusr -usr->Esdras -pass->456 -grp->root
 #mkusr -usr->Esdras1 -pass->456 -grp->root
-rep -name->tree -id->732disco1 -path->tree.jpeg
+rep -name->tree -id->732disco1 -path->tree.svg
+exit
 #exec -path->script.mia
