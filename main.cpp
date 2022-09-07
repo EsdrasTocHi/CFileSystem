@@ -6,6 +6,7 @@ void Read(string str);
 string ToLower(string data);
 
 int main() {
+    system("clear");
     bool cicle = true;
     string str;
     while(cicle) {

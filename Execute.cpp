@@ -9,6 +9,7 @@
 #include "string.h"
 #include "fstream"
 #include "math.h"
+#include "filesystem"
 using namespace std;
 
 string ToLower(string data);
@@ -84,12 +85,37 @@ const string currentDateTime() {
     return buf;
 }
 
+string removeFileName(string path){
+    string p;
+    bool add = false;
+    for(int i = path.length()-1; i >= 0;i--){
+        if(!add){
+            if(path[i] == '/'){
+                add = true;
+            }
+            continue;
+        }
+
+        p = path[i] + p;
+    }
+
+    return p;
+}
+
 void ExecuteMkdisk(int size, string unit, char fit, string path){
     if(!(Exist(path))){
         if(!hasEnding(path, ".dk")){
             cout << "$Error: the file must have the extension .dk"<<endl;
             return;
         }
+
+        string paux = removeFileName(path);
+
+        if(paux != "") {
+            system(("sudo mkdir -p \'" + paux + "\'").c_str());
+            system(("sudo chmod -R 777 \'" + paux + "\'").c_str());
+        }
+
         FILE *file;
         char buff='\0';
         int signature;
