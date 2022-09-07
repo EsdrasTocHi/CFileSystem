@@ -529,3 +529,46 @@ void ReportTree(MountedPartition partition, string path){
     fclose(file);
     saveImageGV(path, content);
 }
+
+void ReportJournaling(MountedPartition partition, string path){
+    FILE *file = fopen(partition.path.c_str(), "rb+");
+    int start;
+    if(partition.isLogic){
+        start = partition.logicPar.part_start;
+    }else{
+        start = partition.par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    SuperBlock sb;
+    fread(&sb, sizeof(SuperBlock), 1, file);
+    if(sb.s_filesystem_type == 0){
+        fclose(file);
+        cout << "$Error: the partition is not formatted"<<endl;
+        return;
+    }else if(sb.s_filesystem_type != 3){
+        fclose(file);
+        cout << "$Error: the partition do not have journaling"<<endl;
+        return;
+    }
+
+    string content;
+    Journal j;
+    int counter = 1;
+    for(int i = start + sizeof(SuperBlock); i < sb.s_bm_inode_start; i += sizeof(Journal)){
+        fseek(file, i, SEEK_SET);
+        fread(&j, sizeof(Journal), 1, file);
+        if(j.j_type == -1){
+            break;
+        }
+        content = "j"+ to_string(counter)+"[label=\"log "+ to_string(counter)+"|{{operation|"+string(j.j_operation)+
+                "}|{type|"+to_string(j.j_type)+"}|{path|"+string(j.j_name)+"}|{content|"+string(j.j_content)
+                +"}|{date|"+string(j.j_date)+"}|\n"+"    {userId|"+ to_string(j.j_owner)+"}}\"];\n"+content;
+        counter++;
+    }
+
+    content = "digraph G {node[shape = record];rankdir = LR;\n"+content+"}";
+
+    fclose(file);
+    saveImageGV(path, content);
+}

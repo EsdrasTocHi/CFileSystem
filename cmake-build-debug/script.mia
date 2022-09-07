@@ -6,8 +6,9 @@ fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica1
 fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica2
 fdisk -path->disco1.dk -s->300 -u->k -t->L -name->logica3
 mount -path->disco1.dk -name->primaria
-mkfs -id->732disco1
+mkfs -id->732disco1 -fs->3fs
 login -id->732disco1 -usr->root -pass->123
+pause
 mkfile -path->/hola1.txt -s->80
 mkfile -path->/hola2.txt -s->80
 mkfile -path->/hola3.txt -s->80
@@ -137,5 +138,6 @@ cat -file1->/hola110.txt
 #mkusr -usr->Esdras -pass->456 -grp->root
 #mkusr -usr->Esdras1 -pass->456 -grp->root
 rep -name->tree -id->732disco1 -path->tree.svg
+rep -name->journaling -id->732disco1 -path->journal.svg
 exit
 #exec -path->script.mia

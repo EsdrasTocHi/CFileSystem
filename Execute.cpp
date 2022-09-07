@@ -1138,6 +1138,8 @@ void ReportBMInode(MountedPartition *mountedPartition, string path);
 void ReportBMBlocks(MountedPartition *mountedPartition, string path);
 void ReportInodes(MountedPartition partition, string path);
 void ReportTree(MountedPartition partition, string path);
+void ReportJournaling(MountedPartition partition, string path);
+
 void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta){
     MountedPartition *mountedPartition;
     int i = 0;
@@ -1163,6 +1165,8 @@ void ExecuteReport(string id, string name, string path, vector<MountedPartition>
         ReportInodes(*mountedPartition, path);
     }else if(ToLower(name) == "tree"){
         ReportTree(*mountedPartition, path);
+    }else if(ToLower(name) == "journaling"){
+        ReportJournaling(*mountedPartition, path);
     }
 }
 
@@ -1295,8 +1299,127 @@ void ext3(MountedPartition *mountedPartition) {
         start = mountedPartition->par.part_start;
     }
 
-    //int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock) + sizeof()));
-    //int num_blocks = 3*num_structures;
+    int num_structures = floor((sizeOfPartition - sizeof(SuperBlock))/(4 + sizeof(Inode)+ 3*sizeof(FileBlock) + sizeof(Journal)));
+    int num_blocks = 3*num_structures;
+
+    SuperBlock sp;
+    sp.s_filesystem_type = 3;
+    sp.s_inodes_count = num_structures;
+    sp.s_blocks_count = num_blocks;
+    sp.s_free_blocks_counts = num_blocks - 2;
+    sp.s_free_inodes_count = num_structures - 2;
+    sp.s_mnt_count = 0;
+    sp.s_magic = 0xEF53;
+    sp.s_inode_s = sizeof(Inode);
+    sp.s_block_s = sizeof(FileBlock);
+    sp.s_first_ino = 2;
+    sp.s_first_blo = 2;
+    sp.s_bm_inode_start = start + sizeof(SuperBlock) + (sizeof(Journal)*num_structures);
+    sp.s_bm_block_start = sp.s_bm_inode_start + num_structures;
+    sp.s_inode_start = sp.s_bm_block_start + num_blocks;
+    sp.s_block_start = sp.s_inode_start + (num_structures * sizeof(Inode));
+
+    FILE *file;
+    file = fopen(mountedPartition->path.c_str(), "rb+");
+    //Creando la estructura:
+    //   creamos el super bloque
+    fseek(file, start, SEEK_SET);
+    fwrite(&sp, sizeof(SuperBlock), 1, file);
+
+    //dejamos el espacio para el journal
+    fseek(file, start + sizeof(SuperBlock), SEEK_SET);
+
+    for(int i = 0; i < num_structures;i++){
+        Journal j;
+        j.j_type = -1;
+        fwrite(&j, sizeof(Journal), 1, file);
+    }
+
+    // creamos el bitmap de inodos pero previamente colocamos el inodo de / y de users.txt
+    char b1 = '1';
+    fwrite(&b1, 1, 1, file);
+    fwrite(&b1, 1, 1, file);
+    char b0 = '0';
+    for(int i = 2; i < num_structures; i++){
+        fwrite(&b0, 1, 1, file);
+    }
+
+    // creamos el bitmap de bloques los bloques para / y users.txt
+    fwrite(&b1, 1, 1, file);
+    fwrite(&b1, 1, 1, file);
+    for(int i = 2; i < num_blocks; i++){
+        fwrite(&b0, 1, 1, file);
+    }
+
+    //creamos e insertamos el primer inodo de /
+    Inode inode = newInode();
+    inode.i_block[0] = 0;
+    inode.i_perm = 664;
+
+    fwrite(&inode, sizeof(Inode), 1, file);
+
+    //creamos el inodo para users.txt
+    inode = newInode();
+    inode.i_s = 27;
+    inode.i_block[0] = 1;
+    inode.i_type = '1';
+    inode.i_perm = 755;
+
+    fwrite(&inode, sizeof(Inode), 1, file);
+    //creamos el bloque para la carpeta /
+    DirBlock dirBlock;
+
+    strcpy(dirBlock.b_content[0].b_name, ".");
+    dirBlock.b_content[0].b_inodo = 0;
+    strcpy(dirBlock.b_content[1].b_name, "..");
+    dirBlock.b_content[1].b_inodo = 0;
+    strcpy(dirBlock.b_content[2].b_name, "users.txt");
+    dirBlock.b_content[2].b_inodo = 1;
+
+    strcpy(dirBlock.b_content[3].b_name, "\0");
+    dirBlock.b_content[3].b_inodo = -1;
+
+    fseek(file, sp.s_block_start, SEEK_SET);
+    fwrite(&dirBlock, sizeof(DirBlock), 1, file);
+
+    // creamos el bloque para users.txt
+    FileBlock fileBlock;
+    memset(fileBlock.b_content, 0, sizeof(fileBlock.b_content));
+    strcpy(fileBlock.b_content, "1,G,root\n1,U,root,root,123\n");
+    fwrite(&fileBlock, sizeof(FileBlock), 1, file);
+
+    fclose(file);
+    cout << "EXT3 FORMAT DONE SUCCESFULLY"<<endl;
+
+    return;
+}
+
+void writeJournal(int start, SuperBlock sb, string cmd, int type, string path, string content, int userId, int perm, FILE *file){
+    Journal j;
+    int i = 0;
+    for(i = start + sizeof(SuperBlock); i < sb.s_bm_inode_start; i += sizeof(Journal)){
+        fseek(file, i, SEEK_SET);
+        fread(&j, sizeof(Journal), 1, file);
+
+        if(j.j_type == -1){
+            break;
+        }
+    }
+
+    if(i >= sb.s_bm_inode_start){
+        cout << "$Error: no more journals available"<<endl;
+        return;
+    }
+
+    strcpy(j.j_operation, cmd.c_str());
+    strcpy(j.j_content, content.c_str());
+    strcpy(j.j_date, currentDateTime().c_str());
+    strcpy(j.j_name, path.c_str());
+    j.j_type = type;
+    j.j_owner = userId;
+
+    fseek(file, i , SEEK_SET);
+    fwrite(&j, sizeof(Journal), 1, file);
 }
 
 void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
@@ -1317,7 +1440,7 @@ void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions){
     if(fs == 2){
         ext2(mountedPartition);
     }else{
-
+        ext3(mountedPartition);
     }
 }
 
@@ -2481,7 +2604,7 @@ void newDirBlock(DirBlock *n){
     }
 }
 
-int writeInode(int type, User user, FILE *file, int istart, int bstart, Sesion *currentUser, int father, int *createdBlocks, int *createdInodes){
+int writeInode(int type, User user, FILE *file, int istart, int bstart, Sesion *currentUser, int father, int *createdBlocks, int *createdInodes, int perm){
     MountedPartition *mountedPartition;
     mountedPartition = &(currentUser->mountedPartition);
 
@@ -2529,7 +2652,7 @@ int writeInode(int type, User user, FILE *file, int istart, int bstart, Sesion *
     strcpy(newInode.i_ctime, currentDateTime().c_str());
     newInode.i_uid = user.id;
     newInode.i_gid = groupId;
-    newInode.i_perm = 664;
+    newInode.i_perm = perm;
     newInode.i_type = '1';
     newInode.i_s = 0;
     if(type == 0){
@@ -2559,7 +2682,7 @@ int writeInode(int type, User user, FILE *file, int istart, int bstart, Sesion *
 }
 
 int writeInodeInPointerBlock(int dim, int pointer, FILE *file, Inode *father, int istart, int bstart, User user,
-                             Sesion *currentUser, string name, int type, SuperBlock sp, int fatherPointer, int *createdBlocks, int *createdInodes){
+                             Sesion *currentUser, string name, int type, SuperBlock sp, int fatherPointer, int *createdBlocks, int *createdInodes, int perm){
     fseek(file, bstart+(64*pointer), SEEK_SET);
     PointerBlock pb;
     fread(&pb, sizeof(PointerBlock), 1, file);
@@ -2576,7 +2699,7 @@ int writeInodeInPointerBlock(int dim, int pointer, FILE *file, Inode *father, in
                     return -1;
                 }
 
-                int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes);
+                int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes, perm);
                 if(newInode == -1){
                     return -1;
                 }
@@ -2604,7 +2727,7 @@ int writeInodeInPointerBlock(int dim, int pointer, FILE *file, Inode *father, in
                         return -1;
                     }
                     if(db.b_content[j].b_inodo == -1){
-                        int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes);
+                        int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes, perm);
                         if(newInode == -1){
                             return -1;
                         }
@@ -2638,7 +2761,7 @@ int writeInodeInPointerBlock(int dim, int pointer, FILE *file, Inode *father, in
                 fwrite(&pb, sizeof(PointerBlock), 1, file);
             }
             int res = writeInodeInPointerBlock(dim-1, pb.b_pointers[i], file, father, istart, bstart, user, currentUser,
-                                               name, type, sp, fatherPointer, createdBlocks, createdInodes);
+                                               name, type, sp, fatherPointer, createdBlocks, createdInodes, perm);
 
             if(res == -1 || res == -2){
                 return res;
@@ -2650,7 +2773,7 @@ int writeInodeInPointerBlock(int dim, int pointer, FILE *file, Inode *father, in
 }
 
 int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user, Sesion *currentUser, string name,
-                     int type, SuperBlock sp, int *createdBlocks, int *createdInodes, int *p){
+                     int type, SuperBlock sp, int *createdBlocks, int *createdInodes, int *p, int perm){
     fseek(file, bstart+(64*father->i_block[0]), SEEK_SET);
     DirBlock dbf;
     fread(&dbf, sizeof(DirBlock), 1, file);
@@ -2665,7 +2788,7 @@ int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user
                 DirBlock newDir;
                 newDirBlock(&newDir);
 
-                int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes);
+                int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes, perm);
                 if(newInode == -1){
                     return -1;
                 }
@@ -2695,7 +2818,7 @@ int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user
                         return -1;
                     }
                     if(dirBlock.b_content[j].b_inodo == -1){
-                        int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes);
+                        int newInode = writeInode(type, user, file, istart, bstart, currentUser, fatherPointer, createdBlocks, createdInodes, perm);
                         if(newInode == -1){
                             return -1;
                         }
@@ -2728,7 +2851,7 @@ int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user
             }
 
             int res = writeInodeInPointerBlock(i-11, father->i_block[i], file, father, istart, bstart, user, currentUser,
-                                               name, type, sp, fatherPointer, createdBlocks, createdInodes);
+                                               name, type, sp, fatherPointer, createdBlocks, createdInodes, perm);
 
             if(res == -1 || res == -2){
                 return res;
@@ -2861,7 +2984,7 @@ int createDirectory(FILE *file, Inode *father, int istart, int bstart, User user
 }*/
 
 bool createMultipleDirectories(vector<string> path, Inode father, FILE *file, Inode root, int istart, int bstart,
-                               int userId, int groupId, Sesion currentUser, SuperBlock sp, int *createdBlocks, int *createdInodes, int *p){
+                               int userId, int groupId, Sesion currentUser, SuperBlock sp, int *createdBlocks, int *createdInodes, int *p, int perm){
 
     vector<string> auxPath;
     Inode response = root;
@@ -2870,7 +2993,7 @@ bool createMultipleDirectories(vector<string> path, Inode father, FILE *file, In
         response = searchFile(file, root, auxPath, istart, bstart, p);
         if(response.i_type == 'n'){
             if (getPermission(father, userId, groupId, father.i_perm, 0, 1, 0)) {
-                createDirectory(file, &father, istart, bstart, currentUser.user, &currentUser, path.at(i), 0, sp, createdBlocks, createdInodes, p);
+                createDirectory(file, &father, istart, bstart, currentUser.user, &currentUser, path.at(i), 0, sp, createdBlocks, createdInodes, p, perm);
                 fseek(file, sp.s_inode_start, SEEK_SET);
                 fread(&root, sizeof(Inode), 1, file);
                 father = searchFile(file, root, auxPath, istart, bstart, p);
@@ -2886,7 +3009,7 @@ bool createMultipleDirectories(vector<string> path, Inode father, FILE *file, In
     return true;
 }
 
-void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession){
+void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession, int perm){
     if(!activeSession){
         cout << "$Error: there is no active session" << endl;
         return;
@@ -2946,7 +3069,7 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
     if(r){
         if(aux.i_type == 'n'){
             if(!createMultipleDirectories(p, root, file, root, sb.s_inode_start, sb.s_block_start, currentUser.user.id,
-                                         getGroupId(currentUser.user.group, c), currentUser, sb, &createdBlocks, &createdInodes, &pointerOfFile)){
+                                         getGroupId(currentUser.user.group, c), currentUser, sb, &createdBlocks, &createdInodes, &pointerOfFile, perm)){
                 fclose(file);
                 return;
             }
@@ -2964,7 +3087,7 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
             fseek(file, sb.s_inode_start, SEEK_SET);
             fread(&root, sizeof(Inode), 1, file);
             if(createDirectory(file, &aux, sb.s_inode_start, sb.s_block_start, currentUser.user, &currentUser,
-                            paux.at(paux.size()-1), 1, sb, &createdBlocks, &createdInodes, &pointerOfFile) == -1){
+                            paux.at(paux.size()-1), 1, sb, &createdBlocks, &createdInodes, &pointerOfFile, perm) == -1){
                 fclose(file);
                 return;
             }
@@ -2985,6 +3108,9 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
             fseek(file, start, SEEK_SET);
             fwrite(&sb, sizeof(SuperBlock), 1, file);
             cout << "FILE CREATED SUCCESFULLY"<< endl;
+            if(sb.s_filesystem_type == 3){
+                writeJournal(start, sb, "mkfile", 1, path, content, currentUser.user.id, perm, file);
+            }
         }else{
             cout << "$Error: you dont have permission to write" << endl;
         }
@@ -2993,7 +3119,7 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
     fclose(file);
 }
 
-void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession){
+void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession, int perm){
     if(!activeSession){
         cout << "$Error: there is no active session" << endl;
         return;
@@ -3034,7 +3160,7 @@ void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession){
     if(r){
         if(aux.i_type == 'n'){
             if(!createMultipleDirectories(p, root, file, root, sb.s_inode_start, sb.s_block_start, currentUser.user.id,
-                                          getGroupId(currentUser.user.group, c), currentUser, sb, &createdBlocks, &createdInodes, &pointerOfFile)){
+                                          getGroupId(currentUser.user.group, c), currentUser, sb, &createdBlocks, &createdInodes, &pointerOfFile, perm)){
                 fclose(file);
                 return;
             }
@@ -3050,7 +3176,7 @@ void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession){
         if(getPermission(aux, currentUser.user.id, getGroupId(currentUser.user.group, c),
                          aux.i_perm, 0, 1 ,0)){
             if(createDirectory(file, &aux, sb.s_inode_start, sb.s_block_start, currentUser.user, &currentUser,
-                               paux.at(paux.size()-1), 0, sb, &createdBlocks, &createdInodes, &pointerOfFile) == -1){
+                               paux.at(paux.size()-1), 0, sb, &createdBlocks, &createdInodes, &pointerOfFile, perm) == -1){
                 fclose(file);
                 return;
             }
@@ -3063,6 +3189,9 @@ void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession){
             fseek(file, start, SEEK_SET);
             fwrite(&sb, sizeof(SuperBlock), 1, file);
             cout << "DIRECTORY CREATED SUCCESFULLY"<< endl;
+            if(sb.s_filesystem_type == 3){
+                writeJournal(start, sb, "mkdir", 0, path, "", currentUser.user.id, perm, file);
+            }
         }else{
             cout << "$Error: you dont have permission to write" << endl;
         }

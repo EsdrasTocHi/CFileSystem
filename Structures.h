@@ -86,7 +86,14 @@ typedef struct{
     int b_pointers[16];
 }PointerBlock;
 
-
+typedef struct{
+    char j_operation[10];
+    int j_type;
+    char j_name[100];
+    char j_content[100];
+    char j_date[19];
+    int j_owner;
+}Journal;
 /*
  *
  * UTILIDADES

@@ -27,8 +27,8 @@ void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteMkusr(string name, string pass, string group, Sesion *currentUser, bool *activeSession);
 void ExecuteRmgrp(string name, Sesion *currentUser, bool *activeSession);
 void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession);
-void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession);
-void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession);
+void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession, int perm);
+void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession, int perm);
 void ExecuteCat(vector<string> files, Sesion currentUser, bool activeSession);
 
 vector<MountedPartition> mountedPartitions;
@@ -878,7 +878,7 @@ void ReadMkfile(vector<string> params){
         return;
     }
 
-    ExecMkfile(path, r, s, cont, currentUser, activeUser);
+    ExecMkfile(path, r, s, cont, currentUser, activeUser, 664);
 }
 
 void ReadMkdir(vector<string> params){
@@ -910,7 +910,7 @@ void ReadMkdir(vector<string> params){
         return;
     }
 
-    ExecuteMkdir(path, r, currentUser, activeUser);
+    ExecuteMkdir(path, r, currentUser, activeUser, 664);
 }
 
 void ReadCat(vector<string> params){
@@ -985,6 +985,8 @@ void Read(string str){
         ReadMkdir(command);
     }else if(cmd == "cat"){
         ReadCat(command);
+    }else if(cmd == "pause"){
+        system("read -p '== PRESS ENTER TO CONTINUE ==' var");
     }else if(cmd == "exit"){
         exit(EXIT_SUCCESS);
     }else{
