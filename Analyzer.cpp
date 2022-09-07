@@ -30,6 +30,7 @@ void ExecuteRmusr(string name, Sesion *currentUser, bool *activeSession);
 void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUser, bool activeSession, int perm);
 void ExecuteMkdir(string path, bool r, Sesion currentUser, bool activeSession, int perm);
 void ExecuteCat(vector<string> files, Sesion currentUser, bool activeSession);
+void ExecuteEdit(string path, string contPath, Sesion currentUser, bool activeSession);
 
 vector<MountedPartition> mountedPartitions;
 Sesion currentUser;
@@ -941,6 +942,42 @@ void ReadCat(vector<string> params){
     ExecuteCat(path, currentUser, activeUser);
 }
 
+void ReadEdit(vector<string> params){
+    string path, contPath;
+
+    for(int i = 0; i < params.size(); i++){
+        vector<string> param = Split(params[i], '>');
+        string name = ToLower(param[0]);
+        string value = param[1];
+
+        if(name == "-path-"){
+            path = ParameterPath(value);
+            if(path == ""){
+                return;
+            }
+        }else if(name == "-cont-"){
+            contPath = ParameterCont(value);
+            if(contPath == ""){
+                return;
+            }
+        }else{
+            cout << "$Error: "+name+" is not a valid parameter"<<endl;
+            return;
+        }
+    }
+
+    if(path == ""){
+        cout << "$Error: PATH is a mandatory parameter" << endl;
+        return;
+    }
+    if(contPath == ""){
+        cout << "$Error: CONT is a mandatory parameter" << endl;
+        return;
+    }
+
+    ExecuteEdit(path, contPath, currentUser, activeUser);
+}
+
 void Read(string str){
     vector<string> command;
     command = Split(str, ' ');
@@ -987,6 +1024,8 @@ void Read(string str){
         ReadCat(command);
     }else if(cmd == "pause"){
         system("read -p '== PRESS ENTER TO CONTINUE ==' var");
+    }else if(cmd == "edit"){
+        ReadEdit(command);
     }else if(cmd == "exit"){
         exit(EXIT_SUCCESS);
     }else{

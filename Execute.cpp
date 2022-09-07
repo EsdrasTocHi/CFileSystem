@@ -3048,12 +3048,15 @@ void ExecMkfile(string path, bool r, int size, string contPath, Sesion currentUs
             return;
         }
 
-        FILE *file = fopen(contPath.c_str(), "r");
-        int s = ftell(file);
-        char c[s];
-        fseek(file, 0, SEEK_SET);
-        fread(&c, s, 1, file);
-        content = string(c);
+        fstream file;
+        file.open(contPath, ios::in);
+
+        if(file.is_open()){
+            string line;
+            while(getline(file, line)){
+                content += line+"\n";
+            }
+        }
     }else if(size != 0){
         for(int i = 0; i < size; i++){
             content += to_string(i%10);
@@ -3272,5 +3275,80 @@ void ExecuteCat(vector<string> files, Sesion currentUser, bool activeSession){
     cout << "=======================================================================" << endl;
     cout << finalContent << endl;
     cout << "=======================================================================" << endl;
+    fclose(file);
+}
+
+void ExecuteEdit(string path, string contPath, Sesion currentUser, bool activeSession){
+    if(!activeSession){
+        cout << "$Error: there is no active session" << endl;
+        return;
+    }
+
+    int start;
+    if(currentUser.mountedPartition.isLogic){
+        start = currentUser.mountedPartition.logicPar.part_start;
+    }else{
+        start = currentUser.mountedPartition.par.part_start;
+    }
+
+    SuperBlock sb;
+    FILE *file = fopen(currentUser.mountedPartition.path.c_str(), "rb+");
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    Inode root, aux;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    int pointerOfFile = 0;
+    aux = searchFile(file, root, splitPath("users.txt"),sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    string c = readFile(file, aux, sb.s_inode_start, sb.s_block_start);
+
+    string content;
+    if(contPath != "") {
+        if (!Exist(contPath)) {
+            cout << "$Error: the file for cont does not exist" << endl;
+            fclose(file);
+            return;
+        }
+
+        fstream file;
+        file.open(contPath, ios::in);
+
+        if(file.is_open()){
+            string line;
+            while(getline(file, line)){
+                content += line+"\n";
+            }
+        }
+    }
+
+    aux = searchFile(file, root, splitPath(path), sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    if(aux.i_type == 'n'){
+        fclose(file);
+        cout << "$Error: "<< path<<" does not exist"<<endl;
+        return;
+    }
+
+    int createdBlocks = 0;
+    if(getPermission(aux, currentUser.user.id, getGroupId(currentUser.user.group, c),aux.i_perm, 0, 1, 0)){
+        if(writeInFile(sb, &aux, content, file, pointerOfFile, &createdBlocks)){
+            aux.i_s = content.length();
+            fseek(file, sb.s_inode_start+(sizeof(Inode)*pointerOfFile), SEEK_SET);
+            fwrite(&aux, sizeof(Inode), 1, file);
+        }else{
+            return;
+        }
+        fseek(file, sb.s_inode_start, SEEK_SET);
+        fread(&root, sizeof(Inode), 1, file);
+
+        sb.s_free_blocks_counts -= createdBlocks;
+
+        fseek(file, start, SEEK_SET);
+        fwrite(&sb, sizeof(SuperBlock), 1, file);
+        cout << "EDITION COMPLETED"<< endl;
+    }else{
+        cout << "$Error: you do not have permission to edit"<<endl;
+    }
+
     fclose(file);
 }

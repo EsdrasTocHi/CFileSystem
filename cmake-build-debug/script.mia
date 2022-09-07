@@ -121,6 +121,8 @@ mkfile -path->/hola108.txt -s->80
 mkfile -path->/hola109.txt -s->80
 mkfile -path->/hola110.txt -s->80
 cat -file1->/hola110.txt
+edit -path->/hola110.txt -cont->contenido.txt
+cat -file1->/hola110.txt
 #mkfile -path->/hola111.txt -s->80
 #mkfile -path->/hola112.txt -s->80
 #mkfile -path->/hola113.txt -s->80
