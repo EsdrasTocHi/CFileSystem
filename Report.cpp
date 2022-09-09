@@ -5,6 +5,7 @@
 #include "Structures.h"
 #include "graphviz/gvc.h"
 #include "stdlib.h"
+#include "vector"
 using namespace std;
 
 bool Exist(string path);
@@ -37,7 +38,17 @@ string removeExtension(string path){
 
     return res;
 }
+
+string removeFileName(string path);
+
 bool saveImageGV(string file_path, string content){
+    string paux = removeFileName(file_path);
+
+    if(paux != "") {
+        system(("sudo mkdir -p \'" + paux + "\'").c_str());
+        system(("sudo chmod -R 777 \'" + paux + "\'").c_str());
+    }
+
     string ext = getExtension(file_path);
     FILE *dot;
     dot = fopen("temp.dot", "w");
@@ -571,4 +582,88 @@ void ReportJournaling(MountedPartition partition, string path){
 
     fclose(file);
     saveImageGV(path, content);
+}
+
+string readFile(FILE *file, Inode inode, int istart, int bstart);
+vector<string> splitPath(string path);
+int getGroupId(string name, string c);
+Inode searchFile(FILE *file, Inode inode, vector<string> path, int istart, int bstart, int *p);
+bool getPermission(Inode inode, int userId, int groupId, int ugo, bool read, bool write, bool execution);
+
+void ReportFile(Sesion currentUser, string reportPath, string filePath){
+    int start;
+    if(currentUser.mountedPartition.isLogic){
+        start = currentUser.mountedPartition.logicPar.part_start;
+    }else{
+        start = currentUser.mountedPartition.par.part_start;
+    }
+
+    SuperBlock sb;
+    FILE *file = fopen(currentUser.mountedPartition.path.c_str(), "rb+");
+    fseek(file, start, SEEK_SET);
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    Inode root, aux;
+    fseek(file, sb.s_inode_start, SEEK_SET);
+    fread(&root, sizeof(Inode), 1, file);
+    int pointerOfFile = 0;
+    aux = searchFile(file, root, splitPath("users.txt"),sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+    string c = readFile(file, aux, sb.s_inode_start, sb.s_block_start);
+
+    string finalContent;
+    aux = searchFile(file, root, splitPath(filePath), sb.s_inode_start, sb.s_block_start, &pointerOfFile);
+
+    if(aux.i_type == 'n'){
+        cout << "$Error: file does not exist" << endl;
+        fclose(file);
+        return;
+    }
+
+    if(getPermission(aux, currentUser.user.id, getGroupId(currentUser.user.group, c),
+                     aux.i_perm, 1, 0,0)){
+        finalContent += readFile(file, aux, sb.s_inode_start, sb.s_block_start) + "\n";
+    }else{
+        cout << "$Error: You do not have permission to read " << filePath << endl;
+        fclose(file);
+        return;
+    }
+
+    fclose(file);
+
+    string report = "digraph G{\nnode[shape = record];rankdir = LR;\nfile[label=\""+filePath+"|"+finalContent+"\"];}";
+    saveImageGV(reportPath, report);
+}
+
+void ReportSb(MountedPartition partition, string path){
+    FILE *file = fopen(partition.path.c_str(), "rb+");
+    int start;
+    if(partition.isLogic){
+        start = partition.logicPar.part_start;
+    }else{
+        start = partition.par.part_start;
+    }
+
+    fseek(file, start, SEEK_SET);
+    SuperBlock sb;
+    fread(&sb, sizeof(SuperBlock), 1, file);
+
+    string report;
+    report += "digraph G {\n";
+    report += "    node[shape = record];rankdir = LR;\n";
+    report += "    \n";
+    report += "    superBlock[label=\"SuperBlock|{s_filesystem_type|"+ to_string(sb.s_filesystem_type)+
+            "}|{s_inodes_count|"+to_string(sb.s_inodes_count)+"}|\n";
+    report += "    {s_blocks_count|"+ to_string(sb.s_blocks_count)+"}|{s_free_blocks_count|"+
+            to_string(sb.s_free_blocks_counts)+"}|{s_free_inodes_count|"+ to_string(sb.s_free_inodes_count)+"}|\n";
+    report += "    {s_mtime|"+string(sb.s_mtime)+"}|{s_umtime|"+string(sb.s_umtime)+"}|{s_mnt_count|"+
+            to_string(sb.s_mnt_count)+"}|{s_magic|"+ to_string(sb.s_magic)+"}|{s_inode_s|"+ to_string(sb.s_inode_s)+"}|\n";
+    report += "    {s_block_s|"+ to_string(sb.s_block_s)+"}|{s_first_ino|"+to_string(sb.s_first_ino)+
+            "}|{s_first_blo|"+ to_string(sb.s_first_blo)+"}|{s_bm_inode_start|"+ to_string(sb.s_bm_inode_start)+"}|\n";
+    report += "    {s_bm_block_start|"+ to_string(sb.s_bm_block_start)+"}|{s_inode_start|"+ to_string(sb.s_inode_start)+
+            "}|{s_block_start|"+to_string(sb.s_block_start)+"}\"];\n";
+    report += "}";
+
+    fclose(file);
+
+    saveImageGV(path, report);
 }

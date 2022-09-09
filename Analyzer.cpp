@@ -20,7 +20,7 @@ void ExecuteMount(string p, string nameString, vector<MountedPartition> *partiti
 void ExecuteUnmount(string id, vector<MountedPartition> *partitions);
 void ExecuteExec(string path);
 void ExecuteMkfs(string id, int fs, vector<MountedPartition> *partitions);
-void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta);
+void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta, Sesion currentUser);
 void ExecuteLogin(string usr, string passw, string id, vector<MountedPartition> *partitions, Sesion *currentUser, bool *activeSession);
 void ExecuteLogout(Sesion *currentUser, bool *activeSession);
 void ExecuteMkGrp(string name, Sesion *currentUser, bool *activeSession);
@@ -136,13 +136,28 @@ int ParameterSizeWithZero(string str){
     return 0;
 }
 
-char ParameterFit(string cmd){
+char ParameterFitFdisk(string cmd){
     string fit = ToLower(cmd);
     if(fit == "bestfit"){
         return 'B';
     }else if(fit == "firstfit"){
         return 'F';
     }else if(fit == "worstfit"){
+        return 'W';
+    }
+
+    cout << "$Error: fit type is invalid" << endl;
+
+    return ' ';
+}
+
+char ParameterFit(string cmd){
+    string fit = ToLower(cmd);
+    if(fit == "bf"){
+        return 'B';
+    }else if(fit == "ff"){
+        return 'F';
+    }else if(fit == "wf"){
         return 'W';
     }
 
@@ -418,7 +433,7 @@ void ReadFdisk(vector<string> params){
                 return;
             }
         }else if(name == "-f-"){
-            fit = ParameterFit(value);
+            fit = ParameterFitFdisk(value);
             if(fit == ' '){
                 return;
             }
@@ -817,6 +832,11 @@ void ReadReport(vector<string> params){
             if(id == ""){
                 return;
             }
+        }else if(name == "-ruta-"){
+            ruta = ParameterPath(value);
+            if(ruta == ""){
+                return;
+            }
         }else{
             cout << "$Error: "+name+" is not a valid parameter"<<endl;
             return;
@@ -836,7 +856,7 @@ void ReadReport(vector<string> params){
         return;
     }
 
-    ExecuteReport(id, reportName, path, &mountedPartitions, ruta);
+    ExecuteReport(id, reportName, path, &mountedPartitions, ruta, currentUser);
 }
 
 void ReadMkfile(vector<string> params){

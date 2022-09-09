@@ -104,7 +104,7 @@ string removeFileName(string path){
 
 void ExecuteMkdisk(int size, string unit, char fit, string path){
     if(!(Exist(path))){
-        if(!hasEnding(path, ".dk")){
+        if(!hasEnding(path, ".dsk")){
             cout << "$Error: the file must have the extension .dk"<<endl;
             return;
         }
@@ -1165,8 +1165,10 @@ void ReportBMBlocks(MountedPartition *mountedPartition, string path);
 void ReportInodes(MountedPartition partition, string path);
 void ReportTree(MountedPartition partition, string path);
 void ReportJournaling(MountedPartition partition, string path);
+void ReportFile(Sesion currentUser, string reportPath, string filePath);
+void ReportSb(MountedPartition partition, string path);
 
-void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta){
+void ExecuteReport(string id, string name, string path, vector<MountedPartition> *partitions, string ruta, Sesion currentUser){
     MountedPartition *mountedPartition;
     int i = 0;
     for(i = 0; i < partitions->size(); i++){
@@ -1193,6 +1195,14 @@ void ExecuteReport(string id, string name, string path, vector<MountedPartition>
         ReportTree(*mountedPartition, path);
     }else if(ToLower(name) == "journaling"){
         ReportJournaling(*mountedPartition, path);
+    }else if(ToLower(name) == "sb"){
+        ReportSb(*mountedPartition, path);
+    }else if(ToLower(name) == "file"){
+        if(ruta == ""){
+            cout << "$Error: RUTA is a mandatory parameter with file and ls reports"<<endl;
+            return;
+        }
+        ReportFile(currentUser, path, ruta);
     }
 }
 
